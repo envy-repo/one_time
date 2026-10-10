@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Favicon Studio</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="icon" type="image/png" href="https://codeby-ayu.github.io/helper/tools/toolfolder_ea_web_creation/aa-favicon_web/favicon_webpage.png">
+  
+  <!-- Tailwind Configuration for Custom Theme Colors -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bgMain: '#18181b',
+            surfaceLighter: '#26262a',
+            surfaceDarker: '#18181c',
+            borderSubtle: '#2d2d2f',
+            accent: '#b53836',
+            accentHover: '#9a2f2d',
+            textLight: '#d1d5db', /* Light grey for paragraphs */
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Typography & Base Variables */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    body {
+      background-color: #18181b;
+      color: #d1d5db;
+      font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow-x: hidden;
+    }
+    
+    /* Interactive Background Canvas */
+    #particle-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Redesigned Cards and Containers */
+    .theme-card {
+      background: linear-gradient(145deg, #26262a 0%, #18181c 100%);
+      border: 1px solid #2d2d2f;
+      border-radius: 1rem;
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
+    }
+
+    /* Dropzone Styling & Special Glow Effect */
+    .dropzone {
+      background-color: #18181c;
+      border: 2px dashed #2d2d2f;
+      transition: all 0.3s ease;
+    }
+
+    .dropzone:hover, .dropzone.drag-active {
+      border-color: #b53836;
+      background-color: rgba(181, 56, 54, 0.05);
+      /* Subtle red glow */
+      box-shadow: 0 0 20px rgba(181, 56, 54, 0.15);
+    }
+
+    /* Custom Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #2d2d2f;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #b53836;
+    }
+
+    /* Settings Button States to make JS toggling cleaner */
+    .btn-inactive {
+      background-color: rgba(24, 24, 28, 0.6);
+      border-color: #2d2d2f;
+      color: #d1d5db;
+    }
+    .btn-inactive:hover {
+      border-color: #404044;
+    }
+    
+    .btn-active {
+      background-color: rgba(181, 56, 54, 0.15);
+      border-color: #b53836;
+      color: #b53836;
+      font-weight: 600;
+      /* Subtle red drop-shadow for active boxes */
+      box-shadow: 0 0 12px rgba(181, 56, 54, 0.3);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between relative selection:bg-accent selection:text-white">
+
+  <!-- Background Particle Animation -->
+  <canvas id="particle-canvas"></canvas>
+
+  <!-- Main Container -->
+  <div class="relative z-10 container mx-auto px-4 py-8 max-w-4xl">
+    
+    <!-- Header / Nav area -->
+    <header class="text-center mb-10 pb-4 border-b border-borderSubtle/50">
+      <div class="inline-flex items-center space-x-3 mb-2">
+        <!-- Icon with Accent Color -->
+        <div class="p-3 bg-accent/10 rounded-xl border border-accent/30 text-accent shadow-[0_0_15px_rgba(181,56,54,0.2)]">
+          <i class="fa-solid fa-wand-magic-sparkles text-2xl"></i>
+        </div>
+        <!-- Bold, Pure White Primary Heading -->
+        <h1 class="text-4xl font-extrabold tracking-tight text-white">
+          Favicon Studio
+        </h1>
+      </div>
+      <!-- Light grey paragraph text -->
+      <p class="text-textLight text-sm md:text-base">Convert, resize, and optimize any image into a web-ready favicon.</p>
+    </header>
+
+    <!-- App Card -->
+    <main class="theme-card p-6 md:p-8 space-y-8 relative z-20">
+      
+      <!-- Upload / Drop Area -->
+      <div id="dropzone" class="dropzone rounded-xl p-8 text-center cursor-pointer relative group">
+        <input type="file" id="fileInput" class="hidden" accept="image/*">
+        <div class="flex flex-col items-center justify-center space-y-3">
+          <div class="w-16 h-16 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent group-hover:scale-110 transition-transform shadow-[0_0_10px_rgba(181,56,54,0.1)]">
+            <i class="fa-solid fa-cloud-arrow-up text-2xl"></i>
+          </div>
+          <div>
+            <p class="text-base font-semibold text-white">
+              Drag & Drop your image here, <span class="text-accent underline decoration-accent/50 hover:text-accentHover">browse</span>
+            </p>
+            <p class="text-xs text-textLight mt-1">or simply press <kbd class="px-1.5 py-0.5 bg-surfaceDarker rounded text-white border border-borderSubtle">Ctrl + V</kbd> / <kbd class="px-1.5 py-0.5 bg-surfaceDarker rounded text-white border border-borderSubtle">Cmd + V</kbd> to paste from clipboard</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview & Configuration Grid -->
+      <div id="editorSection" class="hidden grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-borderSubtle pt-8">
+        
+        <!-- Left Column: Source & Real-time Preview -->
+        <div class="space-y-4">
+          <label class="block text-sm font-medium text-white">Original & Preview</label>
+          <div class="flex items-center justify-around bg-surfaceDarker p-4 rounded-xl border border-borderSubtle min-h-[160px] shadow-inner">
+            <div class="text-center">
+              <span class="text-xs text-textLight block mb-2">Original</span>
+              <img id="sourcePreview" class="max-h-24 max-w-[100px] object-contain rounded border border-borderSubtle mx-auto" alt="Source Preview">
+            </div>
+            <div class="text-borderSubtle text-xl"><i class="fa-solid fa-arrow-right"></i></div>
+            <div class="text-center">
+              <span class="text-xs text-textLight block mb-2">Favicon Preview</span>
+              <div class="p-3 bg-[#131316] rounded-lg border border-borderSubtle inline-block shadow-[0_0_10px_rgba(0,0,0,0.5)]">
+                <canvas id="faviconCanvas" class="mx-auto rounded"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Settings -->
+        <div class="space-y-5">
+          <!-- Size Selector -->
+          <div>
+            <label class="block text-sm font-medium text-white mb-2">Select Dimension</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button type="button" data-size="16" class="size-btn btn-active py-2 px-3 text-xs rounded-lg border text-center transition duration-200">
+                16 × 16<br><span class="text-[10px] opacity-75 font-normal text-textLight">(Tab Icon)</span>
+              </button>
+              <button type="button" data-size="32" class="size-btn btn-inactive py-2 px-3 text-xs rounded-lg border text-center transition duration-200">
+                32 × 32<br><span class="text-[10px] opacity-75 font-normal">(Desktop)</span>
+              </button>
+              <button type="button" data-size="180" class="size-btn btn-inactive py-2 px-3 text-xs rounded-lg border text-center transition duration-200">
+                180 × 180<br><span class="text-[10px] opacity-75 font-normal">(Mobile)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Format Selector -->
+          <div>
+            <label class="block text-sm font-medium text-white mb-2">Export Format</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button type="button" data-format="ico" class="format-btn btn-active py-2 px-3 text-xs rounded-lg border text-center transition duration-200">.ICO</button>
+              <button type="button" data-format="png" class="format-btn btn-inactive py-2 px-3 text-xs rounded-lg border text-center transition duration-200">.PNG</button>
+              <button type="button" data-format="jpg" class="format-btn btn-inactive py-2 px-3 text-xs rounded-lg border text-center transition duration-200">.JPG</button>
+            </div>
+          </div>
+
+          <!-- File Name Input -->
+          <div>
+            <label for="filenameInput" class="block text-sm font-medium text-white mb-1">File Name</label>
+            <div class="flex items-center rounded-lg border border-borderSubtle bg-surfaceDarker overflow-hidden focus-within:border-accent focus-within:shadow-[0_0_8px_rgba(181,56,54,0.2)] transition-all">
+              <input type="text" id="filenameInput" value="favicon" class="w-full bg-transparent px-3 py-2 text-sm text-white outline-none placeholder-textLight">
+              <span id="formatExtLabel" class="px-3 py-2 text-xs text-textLight bg-bgMain border-l border-borderSubtle">.ico</span>
+            </div>
+          </div>
+
+          <!-- Download Action (Primary Call to Action) -->
+          <button id="downloadBtn" class="w-full py-3 bg-accent hover:bg-accentHover active:bg-[#822725] text-white font-semibold rounded-xl shadow-[0_0_15px_rgba(181,56,54,0.4)] transition-all flex items-center justify-center space-x-2">
+            <i class="fa-solid fa-download"></i>
+            <span>Download Favicon</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- HTML Snippet Box Section -->
+      <div class="border-t border-borderSubtle pt-6 space-y-3">
+        <label class="block text-sm font-medium text-white">HTML Embed Code</label>
+        <div class="flex items-center justify-between bg-surfaceDarker p-3 rounded-xl border border-borderSubtle">
+          <code id="htmlCodeSnippet" class="text-xs md:text-sm font-mono text-accent overflow-x-auto whitespace-nowrap pr-2 custom-scrollbar">&lt;link rel="icon" type="image/x-icon" href="/favicon.ico"&gt;</code>
+          <button id="copyCodeBtn" title="Copy code to clipboard" class="p-2 text-textLight hover:text-accent hover:bg-bgMain rounded-lg transition-colors flex items-center space-x-1 text-sm border border-transparent hover:border-borderSubtle">
+            <i class="fa-regular fa-copy"></i>
+            <span id="copyText" class="text-xs hidden md:inline">Copy</span>
+          </button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- JavaScript Application Logic -->
+  <script>
+    // State Variables
+    let loadedImage = null;
+    let selectedSize = 16;
+    let selectedFormat = 'ico';
+
+    // DOM Elements
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const editorSection = document.getElementById('editorSection');
+    const sourcePreview = document.getElementById('sourcePreview');
+    const faviconCanvas = document.getElementById('faviconCanvas');
+    const ctx = faviconCanvas.getContext('2d');
+    const filenameInput = document.getElementById('filenameInput');
+    const formatExtLabel = document.getElementById('formatExtLabel');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const htmlCodeSnippet = document.getElementById('htmlCodeSnippet');
+    const copyCodeBtn = document.getElementById('copyCodeBtn');
+
+    // --- File Drag & Drop / Input Handlers ---
+    dropzone.addEventListener('click', () => fileInput.click());
+
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('drag-active');
+    });
+
+    ['dragleave', 'dragend'].forEach(evt => {
+      dropzone.addEventListener(evt, () => dropzone.classList.remove('drag-active'));
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('drag-active');
+      if (e.dataTransfer.files.length) {
+        processFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length) {
+        processFile(e.target.files[0]);
+      }
+    });
+
+    // Clipboard Paste Listener
+    window.addEventListener('paste', (e) => {
+      const items = e.clipboardData.items;
+      for (let item of items) {
+        if (item.type.indexOf('image') !== -1) {
+          const blob = item.getAsFile();
+          processFile(blob);
+          break;
+        }
+      }
+    });
+
+    function processFile(file) {
+      if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file.');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          loadedImage = img;
+          sourcePreview.src = event.target.result;
+          editorSection.classList.remove('hidden');
+          updateCanvasAndCode();
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // --- Control Handlers ---
+    document.querySelectorAll('.size-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.size-btn').forEach(b => {
+          b.classList.remove('btn-active');
+          b.classList.add('btn-inactive');
+        });
+        btn.classList.add('btn-active');
+        btn.classList.remove('btn-inactive');
+        
+        selectedSize = parseInt(btn.dataset.size);
+        updateCanvasAndCode();
+      });
+    });
+
+    document.querySelectorAll('.format-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.format-btn').forEach(b => {
+          b.classList.remove('btn-active');
+          b.classList.add('btn-inactive');
+        });
+        btn.classList.add('btn-active');
+        btn.classList.remove('btn-inactive');
+        
+        selectedFormat = btn.dataset.format;
+        formatExtLabel.textContent = `.${selectedFormat}`;
+        updateCanvasAndCode();
+      });
+    });
+
+    filenameInput.addEventListener('input', updateSnippetCode);
+
+    function updateCanvasAndCode() {
+      if (!loadedImage) return;
+
+      // Set canvas render dimension
+      faviconCanvas.width = selectedSize;
+      faviconCanvas.height = selectedSize;
+
+      // Display styling size on screen
+      faviconCanvas.style.width = '64px';
+      faviconCanvas.style.height = '64px';
+
+      ctx.clearRect(0, 0, selectedSize, selectedSize);
+      ctx.drawImage(loadedImage, 0, 0, selectedSize, selectedSize);
+
+      updateSnippetCode();
+    }
+
+    function updateSnippetCode() {
+      const name = filenameInput.value.trim() || 'favicon';
+      let typeAttr = 'image/x-icon';
+      if (selectedFormat === 'png') typeAttr = 'image/png';
+      if (selectedFormat === 'jpg') typeAttr = 'image/jpeg';
+
+      htmlCodeSnippet.textContent = `<link rel="icon" type="${typeAttr}" href="/${name}.${selectedFormat}">`;
+    }
+
+    // --- Copy Code to Clipboard ---
+    copyCodeBtn.addEventListener('click', () => {
+      const textToCopy = htmlCodeSnippet.textContent;
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        const copyText = document.getElementById('copyText');
+        const icon = copyCodeBtn.querySelector('i');
+        
+        icon.className = 'fa-solid fa-check text-accent';
+        copyText.textContent = 'Copied!';
+        copyText.classList.remove('hidden');
+
+        setTimeout(() => {
+          icon.className = 'fa-regular fa-copy';
+          copyText.textContent = 'Copy';
+        }, 2000);
+      });
+    });
+
+    // --- Download Handler ---
+    downloadBtn.addEventListener('click', () => {
+      if (!loadedImage) return;
+
+      const name = filenameInput.value.trim() || 'favicon';
+
+      if (selectedFormat === 'ico') {
+        // Generate Standard Windows/Browser ICO binary Blob
+        faviconCanvas.toBlob((pngBlob) => {
+          pngBlob.arrayBuffer().then(buffer => {
+            const pngBytes = new Uint8Array(buffer);
+            const icoHeader = new Uint8Array([0, 0, 1, 0, 1, 0]);
+            
+            let w = selectedSize >= 256 ? 0 : selectedSize;
+            let h = selectedSize >= 256 ? 0 : selectedSize;
+
+            const icoDir = new Uint8Array([
+              w, h, 0, 0, 1, 0, 32, 0,
+              pngBytes.length & 0xff,
+              (pngBytes.length >> 8) & 0xff,
+              (pngBytes.length >> 16) & 0xff,
+              (pngBytes.length >> 24) & 0xff,
+              22, 0, 0, 0
+            ]);
+
+            const icoBlob = new Blob([icoHeader, icoDir, pngBytes], { type: 'image/x-icon' });
+            triggerDownload(icoBlob, `${name}.ico`);
+          });
+        }, 'image/png');
+      } else if (selectedFormat === 'png') {
+        faviconCanvas.toBlob((blob) => {
+          triggerDownload(blob, `${name}.png`);
+        }, 'image/png');
+      } else if (selectedFormat === 'jpg') {
+        faviconCanvas.toBlob((blob) => {
+          triggerDownload(blob, `${name}.jpg`);
+        }, 'image/jpeg', 0.95);
+      }
+    });
+
+    function triggerDownload(blob, fileName) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // --- Particle Animation Background ---
+    const pCanvas = document.getElementById('particle-canvas');
+    const pCtx = pCanvas.getContext('2d');
+    let particles = [];
+
+    function resizeCanvas() {
+      pCanvas.width = window.innerWidth;
+      pCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    class Particle {
+      constructor() {
+        this.reset();
+      }
+      reset() {
+        this.x = Math.random() * pCanvas.width;
+        this.y = Math.random() * pCanvas.height;
+        this.vx = (Math.random() - 0.5) * 0.5;
+        this.vy = (Math.random() - 0.5) * 0.5;
+        this.radius = Math.random() * 1.8 + 0.8;
+        this.alpha = Math.random() * 0.3 + 0.1;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        if (this.x < 0 || this.x > pCanvas.width) this.vx *= -1;
+        if (this.y < 0 || this.y > pCanvas.height) this.vy *= -1;
+      }
+      draw() {
+        pCtx.beginPath();
+        pCtx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        /* Muted Red RGB (181, 56, 54) for particles */
+        pCtx.fillStyle = `rgba(181, 56, 54, ${this.alpha})`;
+        pCtx.fill();
+      }
+    }
+
+    function initParticles() {
+      particles = [];
+      const count = Math.floor((pCanvas.width * pCanvas.height) / 15000);
+      for (let i = 0; i < count; i++) {
+        particles.push(new Particle());
+      }
+    }
+    initParticles();
+
+    function animateParticles() {
+      pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+      for (let i = 0; i < particles.length; i++) {
+        particles[i].update();
+        particles[i].draw();
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 110) {
+            pCtx.beginPath();
+            pCtx.moveTo(particles[i].x, particles[i].y);
+            pCtx.lineTo(particles[j].x, particles[j].y);
+            /* Connecting lines in faint muted red */
+            pCtx.strokeStyle = `rgba(181, 56, 54, ${0.12 * (1 - dist / 110)})`;
+            pCtx.lineWidth = 0.6;
+            pCtx.stroke();
+          }
+        }
+      }
+      requestAnimationFrame(animateParticles);
+    }
+    animateParticles();
+  </script>
+</body>
+</html>
