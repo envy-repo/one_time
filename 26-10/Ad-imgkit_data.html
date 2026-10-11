@@ -122,8 +122,8 @@
 
                 try {
                     // Prepare payload and request
-                    const payload = { key, folder };
-                    
+                    const payload = {request_for: "file_data", private_key: key, folder: folder};
+                    //JSON.stringify({ user_id: target_auth_string})
                     const response = await fetch(FUNCTION_URL, {
                         method: 'POST',
                         headers: {
