@@ -101,8 +101,35 @@
         let imageStates = [];
         let isProcessingQueue = false;
 
+        // --- WATERMARK FUNCTION ---
+        function renderWatermark(ctx, w, h) {
+            ctx.save();
+            // Position 200px from the right (fallback to center if image is too narrow)
+            const watermarkX = Math.max(w * 0.5, w - 200); 
+            const watermarkY = h / 2; // Vertically centered
+            
+            ctx.translate(watermarkX, watermarkY);
+            ctx.rotate(-Math.PI / 2); // Rotate vertically (bottom to top)
+            
+            // Gray with 50% opacity
+            ctx.fillStyle = 'rgba(128, 128, 128, 0.5)'; 
+            
+            // Dynamic font size proportional to image height, with a minimum of 20px
+            const fontSize = Math.max(20, Math.floor(h * 0.04)); 
+            ctx.font = `700 ${fontSize}px 'Poppins', sans-serif`;
+            
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            ctx.fillText('@EzeeNotesListBot', 0, 0);
+            ctx.restore();
+        }
+
         // --- FILE INPUT & UI GENERATION ---
-        imageInput.addEventListener('change', (e) => {
+        imageInput.addEventListener('change', async (e) => {
+            // Ensure font is loaded so it renders immediately
+            await document.fonts.ready;
+
             if (e.target.files && e.target.files.length > 0) {
                 const files = Array.from(e.target.files)
                     .filter(file => file.type.startsWith('image/'))
@@ -186,7 +213,10 @@
             state.originalImage.onload = () => {
                 state.canvas.width = state.originalImage.width;
                 state.canvas.height = state.originalImage.height;
+                
+                // Draw initial image and watermark
                 state.ctx.drawImage(state.originalImage, 0, 0);
+                renderWatermark(state.ctx, state.canvas.width, state.canvas.height);
                 
                 const w = state.originalImage.width;
                 const h = state.originalImage.height;
@@ -234,11 +264,13 @@
             state.statusEl.textContent = "Analyzing mapping...";
             state.statusEl.className = "text-xs font-bold px-2 py-1 rounded bg-indigo-900 text-indigo-200";
             
+            // Draw pure original image without watermark for accurate pixel mapping
             state.ctx.drawImage(state.originalImage, 0, 0);
 
             setTimeout(() => {
                 const width = state.canvas.width;
                 const height = state.canvas.height;
+                // Capture clean image data
                 const imageData = state.ctx.getImageData(0, 0, width, height);
                 const data = imageData.data;
 
@@ -340,7 +372,11 @@
 
         function drawScannerVisuals(state) {
             if (!state.modifiedImageData) return;
+            // Draw mapped base image
             state.ctx.putImageData(state.modifiedImageData, 0, 0); 
+            
+            // Render watermark ON TOP of image but UNDER lines
+            renderWatermark(state.ctx, state.canvas.width, state.canvas.height);
             
             const hLine = (y, locked) => {
                 state.ctx.beginPath();
@@ -434,7 +470,6 @@
 
         // --- SINGLE CLICK CROP & SAVE ALL WITH WATERMARK ---
         cropAllBtn.addEventListener('click', async () => {
-            // Ensure the Google Font is loaded before drawing on the first canvas
             await document.fonts.ready;
 
             cropAllBtn.disabled = true;
@@ -476,43 +511,22 @@
 
                 if (w < 1 || h < 1) { resolve(); return; }
 
-                // Visual crop update on screen
-                const croppedData = state.ctx.getImageData(x, y, w, h);
+                // --- Visual crop update on screen ---
+                // Redraw the clean cropped image & apply the watermark for the webpage preview
                 state.canvas.width = w;
                 state.canvas.height = h;
-                state.ctx.putImageData(croppedData, 0, 0);
+                state.ctx.drawImage(state.originalImage, x, y, w, h, 0, 0, w, h);
+                renderWatermark(state.ctx, w, h);
                 
-                // Temp canvas for clean un-mapped WebP download
+                // --- Temp canvas for clean WebP download ---
                 const tempCanvas = document.createElement('canvas');
                 tempCanvas.width = w; tempCanvas.height = h;
                 const tempCtx = tempCanvas.getContext('2d');
                 
-                // Draw Original Image
                 tempCtx.drawImage(state.originalImage, x, y, w, h, 0, 0, w, h);
-
-                // --- APPLY WATERMARK ---
-                tempCtx.save();
+                renderWatermark(tempCtx, w, h);
                 
-                // Position 100px from the right (fallback to center if image is too narrow)
-                const watermarkX = Math.max(w * 0.5, w - 100); 
-                const watermarkY = h / 2; // Vertically centered
-                
-                tempCtx.translate(watermarkX, watermarkY);
-                tempCtx.rotate(-Math.PI / 2); // Rotate vertically (bottom to top)
-                
-                tempCtx.fillStyle = 'rgba(255, 255, 0, 0.5)'; // Yellow with 50% opacity
-                
-                // Dynamic font size proportional to image height, with a minimum of 20px
-                const fontSize = Math.max(20, Math.floor(h * 0.04)); 
-                tempCtx.font = `700 ${fontSize}px 'Poppins', sans-serif`;
-                
-                tempCtx.textAlign = 'center';
-                tempCtx.textBaseline = 'middle';
-                
-                tempCtx.fillText('@EzeeNotesListBot', 0, 0);
-                tempCtx.restore();
-                // -----------------------
-
+                // Download execution
                 const parts = state.file.name.split('.');
                 if (parts.length > 1) parts.pop(); 
                 const newFileName = `${parts.join('.')}_ayu.webp`;
