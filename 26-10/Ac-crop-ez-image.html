@@ -95,7 +95,8 @@
         const V_LINE_COLOR = '#A78BFA'; 
         
         const SCAN_SPEED = 15; 
-        const DRAG_TOLERANCE = 20;
+        // Increased DRAG_TOLERANCE from 20 to 30 to make it much easier to select/grab the lines
+        const DRAG_TOLERANCE = 30;
 
         // --- STATE MANAGEMENT ---
         let imageStates = [];
@@ -384,7 +385,9 @@
                 state.ctx.lineWidth = locked ? 3 : 1;
                 state.ctx.moveTo(0, y); state.ctx.lineTo(state.canvas.width, y); state.ctx.stroke();
                 if (locked) {
-                    state.ctx.beginPath(); state.ctx.arc(state.canvas.width / 2, y, 6, 0, 2 * Math.PI); 
+                    state.ctx.beginPath(); 
+                    // Increased radius from 6 to 15 for a much bigger dot
+                    state.ctx.arc(state.canvas.width / 2, y, 15, 0, 2 * Math.PI); 
                     state.ctx.fillStyle = H_LINE_COLOR; state.ctx.fill();
                     state.ctx.strokeStyle = '#1F2937'; state.ctx.lineWidth = 1; state.ctx.stroke();
                 }
@@ -395,7 +398,9 @@
                 state.ctx.lineWidth = locked ? 3 : 1;
                 state.ctx.moveTo(x, 0); state.ctx.lineTo(x, state.canvas.height); state.ctx.stroke();
                  if (locked) {
-                    state.ctx.beginPath(); state.ctx.arc(x, state.canvas.height / 2, 6, 0, 2 * Math.PI); 
+                    state.ctx.beginPath(); 
+                    // Increased radius from 6 to 15 for a much bigger dot
+                    state.ctx.arc(x, state.canvas.height / 2, 15, 0, 2 * Math.PI); 
                     state.ctx.fillStyle = V_LINE_COLOR; state.ctx.fill();
                     state.ctx.strokeStyle = '#1F2937'; state.ctx.lineWidth = 1; state.ctx.stroke();
                 }
