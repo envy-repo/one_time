@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ImageKit Edge Function Fetcher</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for the pre block */
+        pre::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        pre::-webkit-scrollbar-track {
+            background: #1f2937;
+            border-radius: 4px;
+        }
+        pre::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+        pre::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen flex items-center justify-center p-4">
+
+    <main class="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden">
+        
+        <!-- Header -->
+        <div class="px-6 py-5 border-b border-slate-800 bg-slate-900/50">
+            <h1 class="text-xl font-semibold text-white flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                Edge Function Fetcher
+            </h1>
+            <p class="text-sm text-slate-400 mt-1">Fetch data from the Supabase ImageKit function.</p>
+        </div>
+
+        <!-- Form Section -->
+        <div class="p-6">
+            <form id="fetchForm" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Key Input -->
+                    <div class="space-y-1.5">
+                        <label for="keyInput" class="block text-sm font-medium text-slate-300">Key</label>
+                        <input type="text" id="keyInput" name="key" placeholder="Enter key..." 
+                            class="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 transition-colors placeholder-slate-500" required>
+                    </div>
+                    
+                    <!-- Folder Input -->
+                    <div class="space-y-1.5">
+                        <label for="folderInput" class="block text-sm font-medium text-slate-300">Folder</label>
+                        <input type="text" id="folderInput" name="folder" placeholder="Enter folder path..." 
+                            class="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 transition-colors placeholder-slate-500" required>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" id="submitBtn" 
+                    class="w-full flex justify-center items-center gap-2 text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:outline-none focus:ring-indigo-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-all disabled:opacity-70 disabled:cursor-not-allowed">
+                    <span>Fetch Data</span>
+                    <svg id="loadingSpinner" class="hidden animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </form>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsContainer" class="hidden border-t border-slate-800 p-6 bg-slate-950/50">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-sm font-medium text-slate-300">Response</h3>
+                <span id="statusBadge" class="text-xs font-medium px-2.5 py-0.5 rounded"></span>
+            </div>
+            
+            <div class="relative">
+                <pre id="jsonOutput" class="p-4 bg-slate-900 border border-slate-700 rounded-lg text-sm text-green-400 overflow-x-auto max-h-[400px] shadow-inner"></pre>
+                
+                <button id="copyBtn" class="absolute top-2 right-2 p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-600 transition-colors hidden" title="Copy to clipboard">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('fetchForm');
+            const submitBtn = document.getElementById('submitBtn');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const btnText = submitBtn.querySelector('span');
+            
+            const resultsContainer = document.getElementById('resultsContainer');
+            const jsonOutput = document.getElementById('jsonOutput');
+            const statusBadge = document.getElementById('statusBadge');
+            const copyBtn = document.getElementById('copyBtn');
+
+            const FUNCTION_URL = 'https://ozxvulrbqxkvivvvupsn.supabase.co/functions/v1/imagekit';
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                // Get values
+                const key = document.getElementById('keyInput').value;
+                const folder = document.getElementById('folderInput').value;
+
+                // UI Loading State
+                setLoadingState(true);
+                resultsContainer.classList.remove('hidden');
+                jsonOutput.textContent = 'Fetching data...';
+                jsonOutput.className = 'p-4 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-400 overflow-x-auto max-h-[400px] shadow-inner';
+                statusBadge.className = 'text-xs font-medium px-2.5 py-0.5 rounded bg-blue-900 text-blue-300';
+                statusBadge.textContent = 'PENDING';
+                copyBtn.classList.add('hidden');
+
+                try {
+                    // Prepare payload and request
+                    const payload = { key, folder };
+                    
+                    const response = await fetch(FUNCTION_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    // Handle Response
+                    const isJson = response.headers.get('content-type')?.includes('application/json');
+                    const data = isJson ? await response.json() : await response.text();
+
+                    if (!response.ok) {
+                        throw { status: response.status, data: data };
+                    }
+
+                    // Success State
+                    displayResult(data, true);
+                    
+                } catch (error) {
+                    // Error State
+                    console.error('Fetch error:', error);
+                    displayResult(error, false);
+                } finally {
+                    setLoadingState(false);
+                }
+            });
+
+            function setLoadingState(isLoading) {
+                if (isLoading) {
+                    submitBtn.disabled = true;
+                    loadingSpinner.classList.remove('hidden');
+                    btnText.textContent = 'Fetching...';
+                } else {
+                    submitBtn.disabled = false;
+                    loadingSpinner.classList.add('hidden');
+                    btnText.textContent = 'Fetch Data';
+                }
+            }
+
+            function displayResult(data, isSuccess) {
+                const formattedData = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+                jsonOutput.textContent = formattedData;
+                copyBtn.classList.remove('hidden');
+
+                if (isSuccess) {
+                    jsonOutput.className = 'p-4 bg-slate-900 border border-slate-700 rounded-lg text-sm text-emerald-400 overflow-x-auto max-h-[400px] shadow-inner';
+                    statusBadge.className = 'text-xs font-medium px-2.5 py-0.5 rounded bg-emerald-900/50 text-emerald-400 border border-emerald-800';
+                    statusBadge.textContent = 'SUCCESS 200';
+                } else {
+                    jsonOutput.className = 'p-4 bg-slate-900 border border-red-900/50 rounded-lg text-sm text-red-400 overflow-x-auto max-h-[400px] shadow-inner';
+                    statusBadge.className = 'text-xs font-medium px-2.5 py-0.5 rounded bg-red-900/50 text-red-400 border border-red-800';
+                    statusBadge.textContent = data.status ? `ERROR ${data.status}` : 'NETWORK ERROR';
+                }
+            }
+
+            // Copy to clipboard functionality
+            copyBtn.addEventListener('click', () => {
+                const textToCopy = jsonOutput.textContent;
+                
+                // Fallback to execCommand if clipboard API is blocked in iframe/environment
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(textToCopy).then(() => showCopyFeedback());
+                } else {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = textToCopy;
+                    textArea.style.position = "fixed";
+                    textArea.style.left = "-999999px";
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    try {
+                        document.execCommand('copy');
+                        showCopyFeedback();
+                    } catch (err) {
+                        console.error('Fallback: Oops, unable to copy', err);
+                    }
+                    document.body.removeChild(textArea);
+                }
+            });
+
+            function showCopyFeedback() {
+                const originalHTML = copyBtn.innerHTML;
+                copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalHTML;
+                }, 2000);
+            }
+        });
+    </script>
+</body>
+</html>
