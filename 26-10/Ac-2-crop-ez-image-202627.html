@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool by Ayu - Dark Mode</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Import Google Font for Watermark -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            background-color: #111827; 
+            color: #f3f4f6;
+        }
+        .container {
+            max-width: 90%;
+            margin: auto;
+        }
+        .canvas-container {
+            border: 1px solid #374151; 
+            background-color: #1f2937; 
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+            border-radius: 0.5rem;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 300px;
+            position: relative;
+        }
+        canvas {
+            max-width: 100%;
+            max-height: 700px;
+            object-fit: contain;
+            display: block;
+            cursor: crosshair;
+            touch-action: none;
+        }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+    </style>
+</head>
+<body class="p-4 md:p-6">
+
+    <!-- Sticky Top Control Panel -->
+    <div class="sticky top-0 z-50 bg-gray-800 p-4 md:p-6 rounded-xl shadow-2xl border border-gray-700 mb-8 max-w-5xl mx-auto flex flex-col space-y-4">
+        
+        <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 items-center justify-between">
+            <div class="flex-grow w-full md:w-1/2">
+                <input type="file" id="imageInput" accept="image/*" multiple webkitdirectory directory class="w-full text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-700 file:text-indigo-400 hover:file:bg-gray-600 transition cursor-pointer" />
+            </div>
+            <span id="fileCount" class="text-sm text-gray-400 font-medium whitespace-nowrap bg-gray-900 px-3 py-1 rounded-full border border-gray-700">No images selected</span>
+        </div>
+
+        <div class="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 w-full border-t border-gray-700 pt-4">
+            
+            <button id="analyzeAllBtn" class="w-full md:w-auto px-8 py-2.5 bg-indigo-600 text-white font-semibold rounded-full hover:bg-indigo-500 shadow-[0_0_15px_rgba(79,70,229,0.4)] disabled:opacity-50 disabled:cursor-not-allowed transition" disabled>
+                ▶ Analyze All One by One
+            </button>
+
+            <div id="globalStatus" class="text-sm font-medium text-indigo-400 hidden animate-pulse">
+                Processing...
+            </div>
+
+            <button id="cropAllBtn" class="w-full md:w-auto px-8 py-2.5 bg-red-600 text-white font-semibold rounded-full hover:bg-red-500 shadow-[0_0_15px_rgba(220,38,38,0.4)] disabled:opacity-50 disabled:cursor-not-allowed transition" disabled>
+                ⬇ Crop & Save All (.webp)
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Image List Container -->
+    <div class="container flex flex-col items-center space-y-8" id="imageList">
+        <div class="text-gray-500 italic mt-10">Select a folder to load images...</div>
+    </div>
+
+    <script>
+        // --- GLOBAL REFERENCES ---
+        const imageInput = document.getElementById('imageInput');
+        const fileCountSpan = document.getElementById('fileCount');
+        const analyzeAllBtn = document.getElementById('analyzeAllBtn');
+        const cropAllBtn = document.getElementById('cropAllBtn');
+        const globalStatus = document.getElementById('globalStatus');
+        const imageList = document.getElementById('imageList');
+        
+        // --- CONSTANTS ---
+        const TARGET_R = 0xEE; const TARGET_G = 0xEE; const TARGET_B = 0xEE;
+        const REPLACEMENT_R = 0xFF; const REPLACEMENT_G = 0x00; const REPLACEMENT_B = 0x00;
+        
+        const H_LINE_COLOR = '#60A5FA'; 
+        const V_LINE_COLOR = '#A78BFA'; 
+        
+        const SCAN_SPEED = 15; 
+        // Increased DRAG_TOLERANCE from 20 to 30 to make it much easier to select/grab the lines
+        const DRAG_TOLERANCE = 30;
+
+        // --- STATE MANAGEMENT ---
+        let imageStates = [];
+        let isProcessingQueue = false;
+
+        // --- WATERMARK FUNCTION ---
+        function renderWatermark(ctx, w, h) {
+            ctx.save();
+            // Position 200px from the right (fallback to center if image is too narrow)
+            const watermarkX = Math.max(w * 0.5, w - 200); 
+            const watermarkY = h / 2; // Vertically centered
+            
+            ctx.translate(watermarkX, watermarkY);
+            ctx.rotate(-Math.PI / 2); // Rotate vertically (bottom to top)
+            
+            // Gray with 30% opacity
+            ctx.fillStyle = 'rgba(128, 128, 128, 0.3)'; 
+            
+            // Dynamic font size proportional to image height, with a minimum of 20px
+            const fontSize = Math.max(20, Math.floor(h * 0.04)); 
+            ctx.font = `600 ${fontSize}px 'Poppins', sans-serif`;
+            
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            ctx.fillText('@EzeeNotesListBot 2026-27', 0, 0);
+            ctx.restore();
+        }
+
+        // --- FILE INPUT & UI GENERATION ---
+        imageInput.addEventListener('change', async (e) => {
+            // Ensure font is loaded so it renders immediately
+            await document.fonts.ready;
+
+            if (e.target.files && e.target.files.length > 0) {
+                const files = Array.from(e.target.files)
+                    .filter(file => file.type.startsWith('image/'))
+                    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+
+                if (files.length === 0) {
+                    fileCountSpan.textContent = "No valid images found.";
+                    return;
+                }
+
+                fileCountSpan.textContent = `${files.length} images selected`;
+                imageList.innerHTML = ""; 
+                imageStates = []; 
+
+                analyzeAllBtn.disabled = false;
+                cropAllBtn.disabled = true;
+
+                files.forEach((file, index) => {
+                    const state = createInitialState(file, index);
+                    imageStates.push(state);
+                    buildImageCard(state);
+                    loadImageIntoState(state);
+                });
+            }
+        });
+
+        function createInitialState(file, index) {
+            return {
+                id: index,
+                file: file,
+                originalImage: new Image(),
+                modifiedImageData: null,
+                canvas: null, ctx: null, statusEl: null, cardEl: null,
+                isAnalyzed: false, isScanning: false, animationFrameId: null,
+                isTopLocked: false, isBottomLocked: false,
+                isLeftLocked: false, isRightLocked: false,
+                scannerYTop: 0, scannerYBottom: 0, scannerXLeft: 0, scannerXRight: 0,
+                lockedY1: -1, lockedY2: -1, lockedX1: -1, lockedX2: -1,
+                H_PROBE_X: [], V_PROBE_Y: [],
+                isDragging: false, draggingLine: 0
+            };
+        }
+
+        function buildImageCard(state) {
+            const card = document.createElement('div');
+            card.className = "w-full max-w-5xl bg-gray-800 p-4 md:p-6 rounded-xl shadow-lg border border-gray-700 flex flex-col space-y-4";
+            
+            const header = document.createElement('div');
+            header.className = "flex justify-between items-center border-b border-gray-700 pb-3";
+            
+            const title = document.createElement('h2');
+            title.className = "text-lg md:text-xl font-bold text-gray-200 truncate";
+            title.textContent = `${state.id + 1}. ${state.file.name}`;
+            
+            const statusBadge = document.createElement('span');
+            statusBadge.className = "text-xs font-bold px-2 py-1 rounded bg-gray-700 text-gray-400";
+            statusBadge.textContent = "Pending";
+            state.statusEl = statusBadge;
+
+            header.appendChild(title);
+            header.appendChild(statusBadge);
+
+            const canvasContainer = document.createElement('div');
+            canvasContainer.className = "canvas-container";
+            
+            const canvas = document.createElement('canvas');
+            state.canvas = canvas;
+            state.ctx = canvas.getContext('2d', { willReadFrequently: true });
+            canvasContainer.appendChild(canvas);
+
+            card.appendChild(header);
+            card.appendChild(canvasContainer);
+            imageList.appendChild(card);
+            state.cardEl = card;
+
+            attachCanvasListeners(state);
+        }
+
+        function loadImageIntoState(state) {
+            const objectURL = URL.createObjectURL(state.file);
+            state.originalImage.onload = () => {
+                state.canvas.width = state.originalImage.width;
+                state.canvas.height = state.originalImage.height;
+                
+                // Draw initial image and watermark
+                state.ctx.drawImage(state.originalImage, 0, 0);
+                renderWatermark(state.ctx, state.canvas.width, state.canvas.height);
+                
+                const w = state.originalImage.width;
+                const h = state.originalImage.height;
+                state.H_PROBE_X = [Math.floor(w * 0.25), Math.floor(w * 0.50), Math.floor(w * 0.75)];
+                state.V_PROBE_Y = [Math.floor(h * 0.25), Math.floor(h * 0.50), Math.floor(h * 0.75)];
+                
+                URL.revokeObjectURL(objectURL); 
+            };
+            state.originalImage.src = objectURL;
+        }
+
+        // --- BATCH PROCESSING ---
+        analyzeAllBtn.addEventListener('click', () => {
+            if (isProcessingQueue) return;
+            analyzeAllBtn.disabled = true;
+            globalStatus.classList.remove('hidden');
+            globalStatus.textContent = "Processing images sequentially...";
+            
+            processQueue(0);
+        });
+
+        function processQueue(index) {
+            if (index >= imageStates.length) {
+                globalStatus.textContent = "All images analyzed and locked!";
+                globalStatus.classList.remove('animate-pulse');
+                globalStatus.classList.add('text-green-400');
+                cropAllBtn.disabled = false;
+                isProcessingQueue = false;
+                analyzeAllBtn.textContent = "Re-Analyze All";
+                analyzeAllBtn.disabled = false;
+                return;
+            }
+
+            isProcessingQueue = true;
+            const state = imageStates[index];
+            
+            state.cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            analyzeImage(state, () => {
+                processQueue(index + 1);
+            });
+        }
+
+        function analyzeImage(state, onComplete) {
+            state.statusEl.textContent = "Analyzing mapping...";
+            state.statusEl.className = "text-xs font-bold px-2 py-1 rounded bg-indigo-900 text-indigo-200";
+            
+            // Draw pure original image without watermark for accurate pixel mapping
+            state.ctx.drawImage(state.originalImage, 0, 0);
+
+            setTimeout(() => {
+                const width = state.canvas.width;
+                const height = state.canvas.height;
+                // Capture clean image data
+                const imageData = state.ctx.getImageData(0, 0, width, height);
+                const data = imageData.data;
+
+                for (let i = 0; i < data.length; i += 4) {
+                    if (data[i] === TARGET_R && data[i+1] === TARGET_G && data[i+2] === TARGET_B) {
+                        data[i] = REPLACEMENT_R; data[i+1] = REPLACEMENT_G; data[i+2] = REPLACEMENT_B;
+                    }
+                }
+
+                state.modifiedImageData = imageData;
+                state.ctx.putImageData(state.modifiedImageData, 0, 0);
+
+                const midY = Math.floor(height / 2);
+                const midX = Math.floor(width / 2);
+                state.scannerYTop = midY; state.scannerYBottom = midY + 1;
+                state.scannerXLeft = midX; state.scannerXRight = midX + 1;
+                
+                state.isTopLocked = false; state.isBottomLocked = false;
+                state.isLeftLocked = false; state.isRightLocked = false;
+                
+                startScan(state, onComplete);
+            }, 50);
+        }
+
+        // --- INDIVIDUAL SCANNER LOGIC ---
+        function checkHCollision(state, y) {
+            if (y < 0 || y >= state.modifiedImageData.height) return false;
+            const data = state.modifiedImageData.data;
+            const w = state.modifiedImageData.width;
+            for (let x of state.H_PROBE_X) {
+                const i = (y * w + x) * 4;
+                if (data[i] !== REPLACEMENT_R || data[i+1] !== REPLACEMENT_G || data[i+2] !== REPLACEMENT_B) return false;
+            }
+            return true;
+        }
+
+        function checkVCollision(state, x) {
+            if (x < 0 || x >= state.modifiedImageData.width) return false;
+            const data = state.modifiedImageData.data;
+            const w = state.modifiedImageData.width;
+            for (let y of state.V_PROBE_Y) {
+                const i = (y * w + x) * 4;
+                if (data[i] !== REPLACEMENT_R || data[i+1] !== REPLACEMENT_G || data[i+2] !== REPLACEMENT_B) return false;
+            }
+            return true;
+        }
+
+        function startScan(state, onComplete) {
+            state.isScanning = true;
+            state.statusEl.textContent = "Scanning...";
+            state.statusEl.className = "text-xs font-bold px-2 py-1 rounded bg-yellow-900 text-yellow-200 animate-pulse";
+            
+            function loop() {
+                if (!state.isScanning) return;
+                
+                if (!state.isTopLocked) {
+                    let found = false;
+                    for(let y = state.scannerYTop; y > state.scannerYTop - SCAN_SPEED; y--) {
+                        if (checkHCollision(state, y)) { state.isTopLocked = true; state.lockedY1 = y; found = true; break; }
+                    }
+                    if (!found) { state.scannerYTop -= SCAN_SPEED; if (state.scannerYTop < 0) { state.isTopLocked = true; state.lockedY1 = 0; } }
+                }
+                if (!state.isBottomLocked) {
+                    let found = false;
+                    for(let y = state.scannerYBottom; y < state.scannerYBottom + SCAN_SPEED; y++) {
+                        if (checkHCollision(state, y)) { state.isBottomLocked = true; state.lockedY2 = y; found = true; break; }
+                    }
+                    if (!found) { state.scannerYBottom += SCAN_SPEED; if (state.scannerYBottom > state.modifiedImageData.height) { state.isBottomLocked = true; state.lockedY2 = state.modifiedImageData.height; } }
+                }
+                if (!state.isLeftLocked) {
+                    let found = false;
+                    for(let x = state.scannerXLeft; x > state.scannerXLeft - SCAN_SPEED; x--) {
+                        if (checkVCollision(state, x)) { state.isLeftLocked = true; state.lockedX1 = x; found = true; break; }
+                    }
+                    if (!found) { state.scannerXLeft -= SCAN_SPEED; if (state.scannerXLeft < 0) { state.isLeftLocked = true; state.lockedX1 = 0; } }
+                }
+                if (!state.isRightLocked) {
+                    let found = false;
+                    for(let x = state.scannerXRight; x < state.scannerXRight + SCAN_SPEED; x++) {
+                        if (checkVCollision(state, x)) { state.isRightLocked = true; state.lockedX2 = x; found = true; break; }
+                    }
+                    if (!found) { state.scannerXRight += SCAN_SPEED; if (state.scannerXRight > state.modifiedImageData.width) { state.isRightLocked = true; state.lockedX2 = state.modifiedImageData.width; } }
+                }
+
+                drawScannerVisuals(state);
+                
+                if(state.isTopLocked && state.isBottomLocked && state.isLeftLocked && state.isRightLocked) {
+                    state.isScanning = false;
+                    state.isAnalyzed = true;
+                    state.statusEl.textContent = "Locked & Ready";
+                    state.statusEl.className = "text-xs font-bold px-2 py-1 rounded bg-green-900 text-green-300";
+                    if (onComplete) onComplete();
+                    return;
+                }
+                state.animationFrameId = requestAnimationFrame(loop);
+            }
+            loop();
+        }
+
+        function drawScannerVisuals(state) {
+            if (!state.modifiedImageData) return;
+            // Draw mapped base image
+            state.ctx.putImageData(state.modifiedImageData, 0, 0); 
+            
+            // Render watermark ON TOP of image but UNDER lines
+            renderWatermark(state.ctx, state.canvas.width, state.canvas.height);
+            
+            const hLine = (y, locked) => {
+                state.ctx.beginPath();
+                state.ctx.strokeStyle = locked ? H_LINE_COLOR : '#4B5563';
+                state.ctx.lineWidth = locked ? 3 : 1;
+                state.ctx.moveTo(0, y); state.ctx.lineTo(state.canvas.width, y); state.ctx.stroke();
+                if (locked) {
+                    state.ctx.beginPath(); 
+                    // Increased radius from 6 to 15 for a much bigger dot
+                    state.ctx.arc(state.canvas.width / 2, y, 15, 0, 2 * Math.PI); 
+                    state.ctx.fillStyle = H_LINE_COLOR; state.ctx.fill();
+                    state.ctx.strokeStyle = '#1F2937'; state.ctx.lineWidth = 1; state.ctx.stroke();
+                }
+            }
+            const vLine = (x, locked) => {
+                state.ctx.beginPath();
+                state.ctx.strokeStyle = locked ? V_LINE_COLOR : '#4B5563';
+                state.ctx.lineWidth = locked ? 3 : 1;
+                state.ctx.moveTo(x, 0); state.ctx.lineTo(x, state.canvas.height); state.ctx.stroke();
+                 if (locked) {
+                    state.ctx.beginPath(); 
+                    // Increased radius from 6 to 15 for a much bigger dot
+                    state.ctx.arc(x, state.canvas.height / 2, 15, 0, 2 * Math.PI); 
+                    state.ctx.fillStyle = V_LINE_COLOR; state.ctx.fill();
+                    state.ctx.strokeStyle = '#1F2937'; state.ctx.lineWidth = 1; state.ctx.stroke();
+                }
+            }
+
+            hLine(state.isTopLocked ? state.lockedY1 : state.scannerYTop, state.isTopLocked);
+            hLine(state.isBottomLocked ? state.lockedY2 : state.scannerYBottom, state.isBottomLocked);
+            vLine(state.isLeftLocked ? state.lockedX1 : state.scannerXLeft, state.isLeftLocked);
+            vLine(state.isRightLocked ? state.lockedX2 : state.scannerXRight, state.isRightLocked);
+        }
+
+        // --- DRAGGING LOGIC ---
+        function attachCanvasListeners(state) {
+            const getCanvasPos = (e) => {
+                const rect = state.canvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                const scaleX = state.canvas.width / rect.width;
+                const scaleY = state.canvas.height / rect.height;
+                return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+            };
+
+            const handleDragStart = (e) => {
+                if (!state.modifiedImageData) return;
+                if (state.isScanning) {
+                    state.isScanning = false;
+                    cancelAnimationFrame(state.animationFrameId);
+                    state.statusEl.textContent = "Manual Adjust";
+                    state.statusEl.className = "text-xs font-bold px-2 py-1 rounded bg-yellow-600 text-yellow-100";
+                }
+                const pos = getCanvasPos(e);
+                if (state.isTopLocked && Math.abs(pos.y - state.lockedY1) < DRAG_TOLERANCE) { state.isDragging = true; state.draggingLine = 1; return; }
+                if (state.isBottomLocked && Math.abs(pos.y - state.lockedY2) < DRAG_TOLERANCE) { state.isDragging = true; state.draggingLine = 2; return; }
+                if (state.isLeftLocked && Math.abs(pos.x - state.lockedX1) < DRAG_TOLERANCE) { state.isDragging = true; state.draggingLine = 3; return; }
+                if (state.isRightLocked && Math.abs(pos.x - state.lockedX2) < DRAG_TOLERANCE) { state.isDragging = true; state.draggingLine = 4; return; }
+            };
+
+            const handleDragMove = (e) => {
+                const pos = getCanvasPos(e);
+                if (!state.isDragging) {
+                    if (pos.x !== undefined) { 
+                        let cursor = 'crosshair';
+                        if ((state.isTopLocked && Math.abs(pos.y - state.lockedY1) < DRAG_TOLERANCE) || 
+                            (state.isBottomLocked && Math.abs(pos.y - state.lockedY2) < DRAG_TOLERANCE)) cursor = 'ns-resize';
+                        else if ((state.isLeftLocked && Math.abs(pos.x - state.lockedX1) < DRAG_TOLERANCE) || 
+                                 (state.isRightLocked && Math.abs(pos.x - state.lockedX2) < DRAG_TOLERANCE)) cursor = 'ew-resize';
+                        state.canvas.style.cursor = cursor;
+                    }
+                    return;
+                }
+
+                const boundsW = state.modifiedImageData.width;
+                const boundsH = state.modifiedImageData.height;
+                if (state.draggingLine === 1) state.lockedY1 = Math.max(0, Math.min(boundsH, pos.y));
+                if (state.draggingLine === 2) state.lockedY2 = Math.max(0, Math.min(boundsH, pos.y));
+                if (state.draggingLine === 3) state.lockedX1 = Math.max(0, Math.min(boundsW, pos.x));
+                if (state.draggingLine === 4) state.lockedX2 = Math.max(0, Math.min(boundsW, pos.x));
+                
+                drawScannerVisuals(state);
+            };
+
+            const handleDragEnd = () => { state.isDragging = false; state.draggingLine = 0; };
+
+            state.canvas.addEventListener('mousedown', handleDragStart);
+            state.canvas.addEventListener('mousemove', handleDragMove);
+            state.canvas.addEventListener('mouseup', handleDragEnd);
+            state.canvas.addEventListener('mouseleave', handleDragEnd);
+            state.canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handleDragStart(e); }, { passive: false });
+            state.canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handleDragMove(e); }, { passive: false });
+            state.canvas.addEventListener('touchend', handleDragEnd);
+        }
+
+        // --- SINGLE CLICK CROP & SAVE ALL WITH WATERMARK ---
+        cropAllBtn.addEventListener('click', async () => {
+            await document.fonts.ready;
+
+            cropAllBtn.disabled = true;
+            analyzeAllBtn.disabled = true;
+            globalStatus.classList.remove('hidden');
+            globalStatus.classList.add('text-indigo-400', 'animate-pulse');
+            globalStatus.classList.remove('text-green-400');
+            
+            let savedCount = 0;
+            
+            for (let i = 0; i < imageStates.length; i++) {
+                const state = imageStates[i];
+                if (state.isAnalyzed && state.isTopLocked && state.isBottomLocked && state.isLeftLocked && state.isRightLocked) {
+                    
+                    globalStatus.textContent = `Saving image ${i + 1} of ${imageStates.length}...`;
+                    state.cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                    await processAndDownloadState(state);
+                    savedCount++;
+                    
+                    await new Promise(r => setTimeout(r, 400));
+                }
+            }
+
+            globalStatus.textContent = `Completed! ${savedCount} images saved as WebP.`;
+            globalStatus.classList.remove('animate-pulse');
+            globalStatus.classList.replace('text-indigo-400', 'text-green-400');
+            
+            cropAllBtn.disabled = false;
+            analyzeAllBtn.disabled = false;
+        });
+
+        function processAndDownloadState(state) {
+            return new Promise((resolve) => {
+                const y = Math.min(state.lockedY1, state.lockedY2);
+                const h = Math.abs(state.lockedY2 - state.lockedY1);
+                const x = Math.min(state.lockedX1, state.lockedX2);
+                const w = Math.abs(state.lockedX2 - state.lockedX1);
+
+                if (w < 1 || h < 1) { resolve(); return; }
+
+                // --- Visual crop update on screen ---
+                // Redraw the clean cropped image & apply the watermark for the webpage preview
+                state.canvas.width = w;
+                state.canvas.height = h;
+                state.ctx.drawImage(state.originalImage, x, y, w, h, 0, 0, w, h);
+                renderWatermark(state.ctx, w, h);
+                
+                // --- Temp canvas for clean WebP download ---
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = w; tempCanvas.height = h;
+                const tempCtx = tempCanvas.getContext('2d');
+                
+                tempCtx.drawImage(state.originalImage, x, y, w, h, 0, 0, w, h);
+                renderWatermark(tempCtx, w, h);
+                
+                // Download execution
+                const parts = state.file.name.split('.');
+                if (parts.length > 1) parts.pop(); 
+                const newFileName = `${parts.join('.')}_ayu.webp`;
+
+                tempCanvas.toBlob((blob) => {
+                    const link = document.createElement('a');
+                    link.download = newFileName; 
+                    link.href = URL.createObjectURL(blob); 
+                    
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    setTimeout(() => URL.revokeObjectURL(link.href), 100);
+                    
+                    state.statusEl.textContent = "Saved ✓";
+                    state.statusEl.className = "text-xs font-bold px-2 py-1 rounded bg-blue-900 text-blue-300";
+                    resolve();
+
+                }, 'image/webp', 0.90);
+            });
+        }
+    </script>
+</body>
+  </html>
