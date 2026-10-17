@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Download Page</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+        }
+
+        .container {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .download-btn {
+            background-color: #007bff;
+            color: white;
+            padding: 14px 28px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 6px;
+            transition: background-color 0.3s;
+        }
+
+        .download-btn:hover {
+            background-color: #0056b3;
+        }
+
+        /* Styling for when the button is loading */
+        .download-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Eze Test Document</h2>
+        <p>Click the button below to trigger the JavaScript download.</p>
+        
+        <!-- Standard button calling the JS function on click -->
+        <button id="downloadBtn" class="download-btn" onclick="downloadPDF('cbse_n11p_c1_pdf')">
+            Download PDF
+        </button>
+    </div>
+
+    <script>
+    let web_para = {
+    cbse_n11p_c1_pdf: {
+        url: "https://ik.imagekit.io/msyctu1ep/0/Eze%20test.pdf",
+        filename: "CBSE_Chapter_1.pdf"
+    },
+    cbse_n11p_c2_pdf: {
+        url: "https://ik.imagekit.io/msyctu1ep/0/Another_test.pdf",
+        filename: "CBSE_Chapter_2.pdf"
+    }
+};
+
+
+        async function downloadPDF(chapter_code) {
+            const btn = document.getElementById('downloadBtn');
+            const originalText = btn.innerText;
+            const pdfUrl = web_para[chapter_code].url;
+            //const fileName = web_para[chapter_code].filename;
+            const rawName = pdfUrl.substring(pdfUrl.lastIndexOf('/') + 1);
+            const fileName = decodeURIComponent(rawName);
+
+            try {
+                // 1. Change button state to show it's working
+                btn.innerText = 'Downloading...';
+                btn.disabled = true;
+
+                // 2. Fetch the file in the background
+                const response = await fetch(pdfUrl);
+                
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                // 3. Convert the response into a Blob (raw data)
+                const blob = await response.blob();
+
+                // 4. Create a temporary local URL for the Blob
+                const windowUrl = window.URL || window.webkitURL;
+                const downloadUrl = windowUrl.createObjectURL(blob);
+
+                // 5. Create a hidden <a> tag and click it programmatically
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+
+                // 6. Clean up: remove the temporary tag and URL to free memory
+                document.body.removeChild(a);
+                windowUrl.revokeObjectURL(downloadUrl);
+
+            } catch (error) {
+                console.error('Download failed:', error);
+                alert('Failed to download the PDF. Please try again.');
+            } finally {
+                // 7. Restore the button state
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+    </script>
+
+</body>
+</html>
