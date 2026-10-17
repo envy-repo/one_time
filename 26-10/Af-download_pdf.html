@@ -61,64 +61,65 @@
 
     <script>
     let web_para = {
-    cbse_n11p_c1_pdf: {
-        url: "https://ik.imagekit.io/msyctu1ep/0/Eze%20test.pdf",
-        filename: "CBSE_Chapter_1.pdf"
-    },
-    cbse_n11p_c2_pdf: {
-        url: "https://ik.imagekit.io/msyctu1ep/0/Another_test.pdf",
-        filename: "CBSE_Chapter_2.pdf"
-    }
-};
-
-
-        async function downloadPDF(chapter_code) {
-            const btn = document.getElementById('downloadBtn');
-            const originalText = btn.innerText;
-            const pdfUrl = web_para[chapter_code].url;
-            //const fileName = web_para[chapter_code].filename;
-            const rawName = pdfUrl.substring(pdfUrl.lastIndexOf('/') + 1);
-            const fileName = decodeURIComponent(rawName);
-
-            try {
-                // 1. Change button state to show it's working
-                btn.innerText = 'Downloading...';
-                btn.disabled = true;
-
-                // 2. Fetch the file in the background
-                const response = await fetch(pdfUrl);
-                
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-
-                // 3. Convert the response into a Blob (raw data)
-                const blob = await response.blob();
-
-                // 4. Create a temporary local URL for the Blob
-                const windowUrl = window.URL || window.webkitURL;
-                const downloadUrl = windowUrl.createObjectURL(blob);
-
-                // 5. Create a hidden <a> tag and click it programmatically
-                const a = document.createElement('a');
-                a.href = downloadUrl;
-                a.download = fileName;
-                document.body.appendChild(a);
-                a.click();
-
-                // 6. Clean up: remove the temporary tag and URL to free memory
-                document.body.removeChild(a);
-                windowUrl.revokeObjectURL(downloadUrl);
-
-            } catch (error) {
-                console.error('Download failed:', error);
-                alert('Failed to download the PDF. Please try again.');
-            } finally {
-                // 7. Restore the button state
-                btn.innerText = originalText;
-                btn.disabled = false;
-            }
+        cbse_n11p_c1_pdf: {
+            url: "https://ik.imagekit.io/msyctu1ep/0/Eze%20test.pdf",
+            filename: "CBSE_Chapter_1.pdf"
+        },
+        cbse_n11p_c2_pdf: {
+            url: "https://ik.imagekit.io/msyctu1ep/0/Another_test.pdf",
+            filename: "CBSE_Chapter_2.pdf"
         }
+    };
+
+    async function downloadPDF(chapter_code) {
+        const btn = document.getElementById('downloadBtn');
+        const originalText = btn.innerText;
+        const pdfUrl = web_para[chapter_code].url;
+        
+        const rawName = pdfUrl.substring(pdfUrl.lastIndexOf('/') + 1);
+        const fileName = decodeURIComponent(rawName);
+
+        try {
+            // 1. Change button state to show it's working
+            btn.innerText = 'Downloading...';
+            btn.disabled = true;
+
+            // 2. Fetch the file in the background
+            const response = await fetch(pdfUrl);
+            
+            if (!response.ok) {
+                // This error message will now be passed to the catch block
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            // 3. Convert the response into a Blob (raw data)
+            const blob = await response.blob();
+
+            // 4. Create a temporary local URL for the Blob
+            const windowUrl = window.URL || window.webkitURL;
+            const downloadUrl = windowUrl.createObjectURL(blob);
+
+            // 5. Create a hidden <a> tag and click it programmatically
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+
+            // 6. Clean up: remove the temporary tag and URL to free memory
+            document.body.removeChild(a);
+            windowUrl.revokeObjectURL(downloadUrl);
+
+        } catch (error) {
+            console.error('Download failed:', error);
+            // 7. Show the specific error message in the alert
+            alert('Failed to download the PDF. Error details: ' + error.message);
+        } finally {
+            // 8. Restore the button state
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    }
     </script>
 
 </body>
