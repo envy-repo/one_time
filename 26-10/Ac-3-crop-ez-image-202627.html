@@ -6,6 +6,9 @@
     <title>Tool by Ayu - Dark Mode</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Import Google Font for Watermark -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=ABeeZee&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -117,12 +120,12 @@
             
             // Dynamic font size proportional to image height, with a minimum of 20px
             const fontSize = Math.max(20, Math.floor(h * 0.04)); 
-            ctx.font = `400 ${fontSize}px 'Poppins', sans-serif`;
+            ctx.font = `350 ${fontSize}px 'ABeeZee', sans-serif`;
             
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             
-            ctx.fillText('@Ezinotes 2026-27', 0, 0);
+            ctx.fillText('@Ezinotes 26-27', 0, 0);
             ctx.restore();
         }
 
