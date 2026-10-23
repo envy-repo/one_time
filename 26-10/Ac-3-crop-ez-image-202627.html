@@ -107,26 +107,25 @@
 
         // --- WATERMARK FUNCTION ---
         function renderWatermark(ctx, w, h) {
-            ctx.save();
-            // Position 200px from the right (fallback to center if image is too narrow)
-            const watermarkX = Math.max(w * 0.5, w - 200); 
-            const watermarkY = h / 2; // Vertically centered
-            
-            ctx.translate(watermarkX, watermarkY);
-            ctx.rotate(-Math.PI / 2); // Rotate vertically (bottom to top)
-            
-            // Gray with 30% opacity
-            ctx.fillStyle = 'rgba(128, 128, 128, 0.3)'; 
-            
-            // Dynamic font size proportional to image height, with a minimum of 20px
-            const fontSize = Math.max(20, Math.floor(h * 0.04)); 
-            ctx.font = `350 ${fontSize}px 'ABeeZee', sans-serif`;
-            
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            
-            ctx.fillText('@Ezinotes 26-27', 0, 0);
-            ctx.restore();
+    ctx.save();
+    // Position 200px from the right (fallback to center if image is too narrow)
+    const watermarkX = Math.max(w * 0.5, w - 200); 
+    const watermarkY = h / 2; // Vertically centered
+    
+    ctx.translate(watermarkX, watermarkY);
+    ctx.rotate(-Math.PI / 2); // Rotate vertically (bottom to top)
+    
+    // Gray with 30% opacity
+    ctx.fillStyle = 'rgba(128, 128, 128, 0.3)'; 
+    
+    // Set font to bold and 300px
+    ctx.font = `bold 300px 'ABeeZee', sans-serif`;
+    
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    ctx.fillText('@Ezinotes 26-27', 0, 0);
+    ctx.restore();
         }
 
         // --- FILE INPUT & UI GENERATION ---
