@@ -547,8 +547,13 @@
                 
                 // Download execution
                 const parts = state.file.name.split('.');
-                if (parts.length > 1) parts.pop(); 
-                const newFileName = `${parts.join('.')}_ayu.webp`;
+                if (parts.length > 1) parts.pop();
+
+                // Replace "Screenshot" with "eze" (case-insensitive)
+                let baseName = parts.join('.');                
+                baseName = baseName.replace(/Screenshot/gi, 'eze');            
+                const newFileName = `${baseName}.webp`;
+                //const newFileName = `${parts.join('.')}_ayu.webp`;
 
                 tempCanvas.toBlob((blob) => {
                     const link = document.createElement('a');
