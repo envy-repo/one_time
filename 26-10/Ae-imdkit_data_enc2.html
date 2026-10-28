@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edge Function Fetcher & Encoder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- Load CryptoJS for AES Encryption -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for textareas */
+        textarea::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        textarea::-webkit-scrollbar-track {
+            background: #1f2937;
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen flex items-center justify-center p-4 py-10">
+
+    <main class="w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden">
+        
+        <!-- Header -->
+        <div class="px-6 py-5 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center">
+            <h1 class="text-xl font-semibold text-white flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                Fetcher & Crypto Tool
+            </h1>
+            <span id="fetchStatusBadge" class="hidden text-xs font-medium px-2.5 py-0.5 rounded"></span>
+        </div>
+
+        <!-- 1. Fetch Form Section -->
+        <div class="p-6 border-b border-slate-800 bg-slate-900/30">
+            <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">1. Fetch Data (Optional)</h2>
+            <form id="fetchForm" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-1.5">
+                        <label for="keyInput" class="block text-sm font-medium text-slate-300">Function Key</label>
+                        <input type="text" id="keyInput" name="key" placeholder="Enter key..." 
+                            class="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 transition-colors placeholder-slate-500" required>
+                    </div>
+                    
+                    <div class="space-y-1.5">
+                        <label for="folderInput" class="block text-sm font-medium text-slate-300">Folder</label>
+                        <input type="text" id="folderInput" name="folder" placeholder="Enter folder path..." 
+                            class="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 transition-colors placeholder-slate-500" required>
+                    </div>
+                </div>
+
+                <button type="submit" id="submitBtn" 
+                    class="w-full flex justify-center items-center gap-2 text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:outline-none focus:ring-indigo-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-all disabled:opacity-70 disabled:cursor-not-allowed">
+                    <span>Fetch Data</span>
+                    <svg id="loadingSpinner" class="hidden animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </form>
+        </div>
+
+        <!-- 2. Crypto Section -->
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">2. Encode / Decode</h2>
+                <span id="cryptoStatus" class="text-xs font-medium px-2.5 py-1 rounded transition-opacity opacity-0"></span>
+            </div>
+
+            <!-- Passcode -->
+            <div class="mb-4">
+                <label for="passcode" class="block text-sm font-medium text-slate-300 mb-1.5">Secret Passcode (Key)</label>
+                <input type="password" id="passcode" placeholder="Enter passcode for encryption/decryption..." 
+                    class="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-2.5 transition-colors placeholder-slate-500">
+            </div>
+
+            <!-- Plain Text Area -->
+            <div class="relative mb-4">
+                <div class="flex justify-between items-center mb-1.5">
+                    <label for="plainText" class="block text-sm font-medium text-slate-300">Plain Text / JSON</label>
+                    <button onclick="copyToClipboard('plainText', 'copyBtnPlain')" id="copyBtnPlain" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        Copy
+                    </button>
+                </div>
+                <textarea id="plainText" rows="6" placeholder="Fetched data will appear here, or paste your JSON manually..."
+                    class="w-full bg-slate-950 border border-slate-700 text-emerald-400 text-sm font-mono rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-3 transition-colors placeholder-slate-600 resize-y"></textarea>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-4 mb-4">
+                <button onclick="encryptData()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-medium py-2 px-4 rounded-lg border border-slate-700 transition-colors">
+                    ↓ Encode (Encrypt) ↓
+                </button>
+                <button onclick="decryptData()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-medium py-2 px-4 rounded-lg border border-slate-700 transition-colors">
+                    ↑ Decode (Decrypt) ↑
+                </button>
+            </div>
+
+            <!-- Encoded Text Area -->
+            <div class="relative mb-6">
+                <div class="flex justify-between items-center mb-1.5">
+                    <label for="encodedText" class="block text-sm font-medium text-slate-300">Encoded Text (AES)</label>
+                    <button onclick="copyToClipboard('encodedText', 'copyBtnEncoded')" id="copyBtnEncoded" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        Copy
+                    </button>
+                </div>
+                <textarea id="encodedText" rows="5" placeholder="Encrypted string will appear here, or paste encrypted text here to decode..."
+                    class="w-full bg-slate-950 border border-slate-700 text-amber-400 text-sm font-mono rounded-lg focus:ring-amber-500 focus:border-amber-500 block p-3 transition-colors placeholder-slate-600 resize-y"></textarea>
+            </div>
+
+            <!-- Download Section (Hidden by default, shown after successful fetch) -->
+            <div id="downloadSection" class="hidden">
+                <button onclick="downloadJsFile()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 px-4 rounded-lg border border-emerald-500 transition-colors flex justify-center items-center gap-2 shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    Download Data as JS File
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('fetchForm');
+            const submitBtn = document.getElementById('submitBtn');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const btnText = submitBtn.querySelector('span');
+            
+            const fetchStatusBadge = document.getElementById('fetchStatusBadge');
+            const plainText = document.getElementById('plainText');
+            const downloadSection = document.getElementById('downloadSection');
+
+            // Inputs that need to be saved
+            const keyInput = document.getElementById('keyInput');
+            const folderInput = document.getElementById('folderInput');
+            const passcodeInput = document.getElementById('passcode');
+
+            // --- LOCAL STORAGE LOGIC ---
+            // 1. Load saved data on page load
+            if (localStorage.getItem('savedKey')) keyInput.value = localStorage.getItem('savedKey');
+            if (localStorage.getItem('savedFolder')) folderInput.value = localStorage.getItem('savedFolder');
+            if (localStorage.getItem('savedPasscode')) passcodeInput.value = localStorage.getItem('savedPasscode');
+
+            // 2. Save data automatically when user types
+            keyInput.addEventListener('input', (e) => localStorage.setItem('savedKey', e.target.value));
+            folderInput.addEventListener('input', (e) => localStorage.setItem('savedFolder', e.target.value));
+            passcodeInput.addEventListener('input', (e) => localStorage.setItem('savedPasscode', e.target.value));
+
+            const FUNCTION_URL = 'https://ozxvulrbqxkvivvvupsn.supabase.co/functions/v1/imagekit';
+            const SUPABASE_ANON_KEY = 'sb_publishable_DmXGtvSl-Fd7YetxVTS7hg_F6fJKu8v'; 
+
+            // --- FETCH LOGIC ---
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const key = keyInput.value;
+                const folder = folderInput.value;
+
+                setLoadingState(true);
+                plainText.value = 'Fetching data...';
+                
+                fetchStatusBadge.classList.remove('hidden');
+                fetchStatusBadge.className = 'text-xs font-medium px-2.5 py-0.5 rounded bg-blue-900 text-blue-300';
+                fetchStatusBadge.textContent = 'FETCHING...';
+
+                // Hide download button while fetching
+                downloadSection.classList.add('hidden');
+
+                try {
+                    const payload = {request_for: "file_data", private_key: key, folder: folder, is_index: true, is_fileId: false};
+                    const response = await fetch(FUNCTION_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const isJson = response.headers.get('content-type')?.includes('application/json');
+                    const data = isJson ? await response.json() : await response.text();
+
+                    if (!response.ok) throw { status: response.status, data: data };
+
+                    displayFetchResult(data, true);
+                } catch (error) {
+                    console.error('Fetch error:', error);
+                    displayFetchResult(error, false);
+                } finally {
+                    setLoadingState(false);
+                }
+            });
+
+            function setLoadingState(isLoading) {
+                if (isLoading) {
+                    submitBtn.disabled = true;
+                    loadingSpinner.classList.remove('hidden');
+                    btnText.textContent = 'Fetching...';
+                } else {
+                    submitBtn.disabled = false;
+                    loadingSpinner.classList.add('hidden');
+                    btnText.textContent = 'Fetch Data';
+                }
+            }
+
+            function displayFetchResult(data, isSuccess) {
+                const formattedData = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+                plainText.value = formattedData;
+
+                if (isSuccess) {
+                    fetchStatusBadge.className = 'text-xs font-medium px-2.5 py-0.5 rounded bg-emerald-900/50 text-emerald-400 border border-emerald-800';
+                    fetchStatusBadge.textContent = 'FETCH SUCCESS 200';
+                    showCryptoStatus('Data fetched successfully! Enter a passcode to encode it.', 'success');
+                    
+                    // Show the Download button once fetch is successful
+                    downloadSection.classList.remove('hidden');
+                } else {
+                    fetchStatusBadge.className = 'text-xs font-medium px-2.5 py-0.5 rounded bg-red-900/50 text-red-400 border border-red-800';
+                    fetchStatusBadge.textContent = data.status ? `ERROR ${data.status}` : 'NETWORK ERROR';
+                    plainText.classList.replace('text-emerald-400', 'text-red-400');
+                }
+            }
+        });
+
+        // --- ENCRYPTION / DECRYPTION LOGIC ---
+        function showCryptoStatus(message, type = 'success') {
+            const statusEl = document.getElementById('cryptoStatus');
+            statusEl.textContent = message;
+            statusEl.className = `text-xs font-medium px-2.5 py-1 rounded transition-opacity duration-300 opacity-100 ${
+                type === 'error' ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-emerald-900/50 text-emerald-400 border border-emerald-800'
+            }`;
+            
+            setTimeout(() => {
+                statusEl.classList.remove('opacity-100');
+                statusEl.classList.add('opacity-0');
+            }, 4000);
+        }
+
+        function encryptData() {
+            const passcode = document.getElementById('passcode').value;
+            const plainText = document.getElementById('plainText').value;
+
+            if (!passcode) return showCryptoStatus('Please enter a passcode first!', 'error');
+            if (!plainText) return showCryptoStatus('Plain text is empty!', 'error');
+
+            try {
+                const encrypted = CryptoJS.AES.encrypt(plainText, passcode).toString();
+                document.getElementById('encodedText').value = encrypted;
+                showCryptoStatus('Successfully Encoded!', 'success');
+                return true;
+            } catch (error) {
+                showCryptoStatus('Encryption failed!', 'error');
+                return false;
+            }
+        }
+
+        function decryptData() {
+            const passcode = document.getElementById('passcode').value;
+            const encodedText = document.getElementById('encodedText').value;
+
+            if (!passcode) return showCryptoStatus('Please enter a passcode first!', 'error');
+            if (!encodedText) return showCryptoStatus('Encoded text is empty!', 'error');
+
+            try {
+                const bytes = CryptoJS.AES.decrypt(encodedText, passcode);
+                const decrypted = bytes.toString(CryptoJS.enc.Utf8);
+
+                if (!decrypted) throw new Error("Wrong passcode");
+
+                try {
+                    const jsonObj = JSON.parse(decrypted);
+                    document.getElementById('plainText').value = JSON.stringify(jsonObj, null, 2);
+                } catch (e) {
+                    document.getElementById('plainText').value = decrypted; 
+                }
+                
+                showCryptoStatus('Successfully Decoded!', 'success');
+            } catch (error) {
+                showCryptoStatus('Decryption failed! Wrong passcode or bad data.', 'error');
+            }
+        }
+
+        // --- DOWNLOAD LOGIC ---
+        function downloadJsFile() {
+            const folderName = document.getElementById('folderInput').value.trim();
+            let encodedText = document.getElementById('encodedText').value.trim();
+
+            if (!folderName) {
+                return showCryptoStatus('Folder name is missing!', 'error');
+            }
+
+            // Auto-encrypt if the encoded textarea is empty
+            if (!encodedText) {
+                const success = encryptData();
+                if (!success) return; // Breaks out if encryption fails (e.g., missing passcode)
+                encodedText = document.getElementById('encodedText').value.trim();
+            }
+
+            // Format data as window["folderName"] = "EncodedText";
+            const fileContent = `window["${folderName}"] = "${encodedText}";`;
+
+            // Create a blob and download it
+            const blob = new Blob([fileContent], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${folderName}.js`;
+            
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showCryptoStatus(`Downloaded ${folderName}.js successfully!`, 'success');
+        }
+
+        // --- COPY TO CLIPBOARD ---
+        function copyToClipboard(textareaId, btnId) {
+            const textToCopy = document.getElementById(textareaId).value;
+            const btn = document.getElementById(btnId);
+            if (!textToCopy) return;
+
+            const originalHTML = btn.innerHTML;
+            
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!';
+                btn.classList.add('text-emerald-400');
+            }).catch(() => {
+                btn.innerHTML = 'Failed';
+                btn.classList.add('text-red-400');
+            }).finally(() => {
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.classList.remove('text-emerald-400', 'text-red-400');
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+                                                                                                                   </html>
