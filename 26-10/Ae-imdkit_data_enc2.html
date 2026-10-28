@@ -309,7 +309,8 @@
             }
 
             // Format data as window["folderName"] = "EncodedText";
-            const fileContent = `window["${folderName}"] = "${encodedText}";`;
+            //const fileContent = `window["${folderName}"] = "${encodedText}";`;
+            const fileContent = `window.${folderName} = "${encodedText}";`;
 
             // Create a blob and download it
             const blob = new Blob([fileContent], { type: 'text/javascript' });
