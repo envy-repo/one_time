@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UTC Timestamp Converter - IST</title>
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #18181b;
+            color: #d1d5db; /* Light grey for standard text */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        /* Header / Navigation */
+        nav {
+            width: 100%;
+            background: transparent;
+            padding: 20px 40px;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #2d2d2f;
+        }
+
+        .nav-brand {
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .nav-links a {
+            color: #ffffff;
+            text-decoration: none;
+            margin-left: 20px;
+            font-size: 0.95rem;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: #b53836;
+        }
+
+        /* Layout Wrapper */
+        .main-content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* Container Card */
+        .container {
+            background: #26262a;
+            padding: 35px 30px;
+            border-radius: 12px;
+            border: 1px solid #2d2d2f;
+            width: 100%;
+            max-width: 450px;
+            transition: box-shadow 0.3s ease, border-color 0.3s ease;
+        }
+
+        /* Glow effect on hover or focus-within */
+        .container:hover, .container:focus-within {
+            box-shadow: 0 8px 30px rgba(181, 56, 54, 0.15);
+            border-color: #b53836;
+        }
+
+        h2 {
+            text-align: center;
+            color: #ffffff;
+            margin-top: 0;
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-top: 20px;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #e5e7eb;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            box-sizing: border-box;
+            border: 1px solid #2d2d2f;
+            background: #18181b;
+            color: #ffffff;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #b53836;
+            box-shadow: 0 0 8px rgba(181, 56, 54, 0.4);
+        }
+
+        .hint {
+            color: #9ca3af;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        .result {
+            margin-top: 10px;
+            padding: 15px;
+            background: #18181b;
+            border: 1px solid #2d2d2f;
+            border-radius: 6px;
+            font-size: 22px;
+            font-weight: bold;
+            text-align: center;
+            color: #ffffff;
+            word-break: break-all;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            margin-top: 20px;
+            border: none;
+            border-radius: 6px;
+            background: #b53836;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            background: #9d302f;
+            box-shadow: 0 4px 15px rgba(181, 56, 54, 0.4);
+        }
+
+        #message {
+            text-align: center;
+            margin-top: 15px;
+            color: #4ade80; /* Adapted green for dark mode contrast */
+            font-size: 14px;
+            min-height: 20px;
+        }
+
+        .timezone {
+            text-align: center;
+            color: #9ca3af;
+            font-size: 13px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="nav-brand">DevTools</div>
+        <div class="nav-links">
+            <a href="#">Home</a>
+            <a href="#">Converters</a>
+            <a href="#">Settings</a>
+        </div>
+    </nav>
+
+    <div class="main-content">
+        <div class="container">
+            <h2>Unix Timestamp Converter</h2>
+
+            <label for="timestamp">Created UTC Timestamp</label>
+            <input
+                type="number"
+                id="timestamp"
+                placeholder="Enter timestamp (e.g. 1772521857)"
+                oninput="convertTimestamp()"
+            >
+            <div class="hint">Supports seconds and milliseconds.</div>
+
+            <label>Converted Time</label>
+            <div class="result" id="result">-</div>
+
+            <button onclick="copyResult()">Copy Converted Time</button>
+
+            <div id="message"></div>
+
+            <div class="timezone">Timezone: Asia/Kolkata (IST)</div>
+        </div>
+    </div>
+
+    <script>
+        function convertTimestamp() {
+            const timestamp = document.getElementById("timestamp").value;
+            const resultElement = document.getElementById("result");
+            document.getElementById("message").textContent = "";
+
+            if (!timestamp || !Number.isFinite(Number(timestamp))) {
+                resultElement.textContent = "-";
+                return;
+            }
+
+            let value = Number(timestamp);
+
+            // Convert seconds to milliseconds
+            if (Math.abs(value) < 100000000000) {
+                value = value * 1000;
+            }
+
+            const date = new Date(value);
+
+            if (isNaN(date.getTime())) {
+                resultElement.textContent = "Invalid Timestamp";
+                return;
+            }
+
+            // Format date in Asia/Kolkata timezone
+            const formatter = new Intl.DateTimeFormat("en-GB", {
+                timeZone: "Asia/Kolkata",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hourCycle: "h23"
+            });
+
+            const parts = formatter.formatToParts(date);
+            const get = (type) => parts.find(p => p.type === type).value;
+
+            // Required format: yyyyMMdd_HHmmss
+            const formatted =
+                get("year") + get("month") + get("day") + "_" +
+                get("hour") + get("minute") + get("second");
+
+            resultElement.textContent = formatted;
+        }
+
+        async function copyResult() {
+            const result = document.getElementById("result").textContent;
+            const message = document.getElementById("message");
+
+            if (result === "-" || result === "Invalid Timestamp") {
+                message.textContent = "Please enter a valid timestamp.";
+                message.style.color = "#f87171"; 
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(result);
+                message.textContent = "Copied successfully!";
+                message.style.color = "#4ade80"; 
+            } catch (error) {
+                message.textContent = "Copy failed. Please copy manually.";
+                message.style.color = "#f87171"; 
+            }
+        }
+    </script>
+</body>
+</html>
