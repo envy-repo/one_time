@@ -1,0 +1,2589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StorySync Studio — Word-Level Audio & Interactive Story Builder</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter for UI, Lora for Literary Story Reading -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            serif: ['Lora', 'Georgia', 'serif'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    /* Custom scrollbar and fine-tuned reader highlight transitions */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.4);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.65);
+    }
+
+    /* Interactive story word spans */
+    .story-word {
+      display: inline-block;
+      cursor: pointer;
+      border-radius: 0.35rem;
+      padding: 0.05em 0.16em;
+      margin: 0 -0.04em;
+      transition: background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.1s ease;
+      user-select: none;
+    }
+    .story-word:hover {
+      background-color: rgba(99, 102, 241, 0.14);
+    }
+
+    /* Highlight Style 1: Soft Pill */
+    .hl-pill .story-word.is-past {
+      opacity: 0.78;
+    }
+    .hl-pill .story-word.is-active {
+      background-color: #4f46e5;
+      color: #ffffff !important;
+      box-shadow: 0 2px 10px rgba(79, 70, 229, 0.35);
+      transform: translateY(-0.5px);
+    }
+    .theme-sepia.hl-pill .story-word.is-active {
+      background-color: #b45309;
+      color: #fffbeb !important;
+      box-shadow: 0 2px 10px rgba(180, 83, 9, 0.3);
+    }
+    .theme-dark.hl-pill .story-word.is-active {
+      background-color: #6366f1;
+      color: #ffffff !important;
+      box-shadow: 0 2px 14px rgba(99, 102, 241, 0.5);
+    }
+
+    /* Highlight Style 2: Underline Glow */
+    .hl-underline .story-word {
+      border-bottom: 2.5px solid transparent;
+      border-radius: 0.2rem;
+    }
+    .hl-underline .story-word.is-past {
+      opacity: 0.82;
+    }
+    .hl-underline .story-word.is-active {
+      color: #4338ca !important;
+      border-bottom-color: #4f46e5;
+      background-color: rgba(79, 70, 229, 0.1);
+      box-shadow: 0 4px 12px -2px rgba(79, 70, 229, 0.28);
+    }
+    .theme-sepia.hl-underline .story-word.is-active {
+      color: #92400e !important;
+      border-bottom-color: #d97706;
+      background-color: rgba(217, 119, 6, 0.12);
+      box-shadow: 0 4px 12px -2px rgba(217, 119, 6, 0.28);
+    }
+    .theme-dark.hl-underline .story-word.is-active {
+      color: #a5b4fc !important;
+      border-bottom-color: #818cf8;
+      background-color: rgba(129, 140, 248, 0.16);
+      box-shadow: 0 4px 14px -2px rgba(129, 140, 248, 0.4);
+    }
+
+    /* Highlight Style 3: Karaoke Fill (uses --word-progress CSS custom property 0%..100%) */
+    .hl-karaoke .story-word.is-past {
+      color: #4f46e5;
+    }
+    .theme-sepia.hl-karaoke .story-word.is-past {
+      color: #b45309;
+    }
+    .theme-dark.hl-karaoke .story-word.is-past {
+      color: #818cf8;
+    }
+    .hl-karaoke .story-word.is-active {
+      background: linear-gradient(
+        90deg,
+        rgba(79, 70, 229, 0.22) var(--word-progress, 0%),
+        rgba(79, 70, 229, 0.06) var(--word-progress, 0%)
+      );
+      color: #3730a3;
+      box-shadow: inset 0 -2px 0 #4f46e5;
+    }
+    .theme-sepia.hl-karaoke .story-word.is-active {
+      background: linear-gradient(
+        90deg,
+        rgba(180, 83, 9, 0.24) var(--word-progress, 0%),
+        rgba(180, 83, 9, 0.06) var(--word-progress, 0%)
+      );
+      color: #78350f;
+      box-shadow: inset 0 -2px 0 #b45309;
+    }
+    .theme-dark.hl-karaoke .story-word.is-active {
+      background: linear-gradient(
+        90deg,
+        rgba(129, 140, 248, 0.32) var(--word-progress, 0%),
+        rgba(129, 140, 248, 0.08) var(--word-progress, 0%)
+      );
+      color: #e0e7ff;
+      box-shadow: inset 0 -2px 0 #818cf8;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased min-h-screen flex flex-col">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full px-4 sm:px-0"></div>
+
+  <!-- Top Header & Two-Stage Workflow Stepper -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <!-- Brand Identity -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+            </svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-lg font-bold tracking-tight text-slate-900">StorySync Studio</h1>
+              <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">Word-Level TTS</span>
+            </div>
+            <p class="text-xs text-slate-500 hidden sm:block">Generate word timestamps &amp; export interactive karaoke stories</p>
+          </div>
+        </div>
+
+        <!-- Mobile Sample Button -->
+        <button id="btn-load-sample-mobile" type="button" class="md:hidden inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 transition">
+          <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Sample Story
+        </button>
+      </div>
+
+      <!-- Two-Stage Workflow Stepper -->
+      <nav aria-label="Workflow Steps" class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80 self-stretch md:self-auto">
+        <button id="tab-btn-1" type="button" data-tab="1" class="flex-1 md:flex-initial flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition bg-white text-indigo-700 shadow-sm">
+          <span class="w-5 h-5 rounded-full bg-indigo-600 text-white text-[11px] flex items-center justify-center font-bold">1</span>
+          <span>Generate Audio &amp; Word Data</span>
+        </button>
+        <button id="tab-btn-2" type="button" data-tab="2" class="flex-1 md:flex-initial flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition text-slate-600 hover:text-slate-900">
+          <span id="tab-badge-2" class="w-5 h-5 rounded-full bg-slate-300 text-slate-700 text-[11px] flex items-center justify-center font-bold">2</span>
+          <span>Final Story Page &amp; Export</span>
+        </button>
+      </nav>
+
+      <!-- Desktop Load Sample Story Action -->
+      <div class="hidden md:flex items-center gap-2">
+        <button id="btn-load-sample" type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/70 transition cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Load Sample Story
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ===================================================================== -->
+    <!-- STAGE 1: GENERATE AUDIO & WORD-LEVEL TIMESTAMP DATA                   -->
+    <!-- ===================================================================== -->
+    <section id="stage-1" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+      <!-- LEFT PANEL: Story Input & Generation Engine (7 columns on lg) -->
+      <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">1. Story Script &amp; Audio Engine</h2>
+            <p class="text-xs text-slate-500">Enter your story and choose how to generate audio + exact word timings</p>
+          </div>
+          <div class="text-right">
+            <span id="story-stats-badge" class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700">
+              0 words &bull; ~0s
+            </span>
+          </div>
+        </div>
+
+        <div class="p-5 space-y-5">
+          <!-- Story Title -->
+          <div>
+            <label for="input-story-title" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Story Title</label>
+            <input
+              id="input-story-title"
+              type="text"
+              placeholder="e.g., The Clockmaker of Lantern Alley"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+            />
+          </div>
+
+          <!-- Story Text -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label for="input-story-text" class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Story Narrative</label>
+              <span class="text-[11px] text-slate-400">Separate paragraphs with a blank line</span>
+            </div>
+            <textarea
+              id="input-story-text"
+              rows="6"
+              placeholder="Write or paste your story here..."
+              class="w-full px-3.5 py-3 rounded-xl border border-slate-300 text-sm leading-relaxed text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+            ></textarea>
+          </div>
+
+          <!-- Generation Mode Selector Tabs -->
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">Audio &amp; Timestamp Generation Mode</label>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200/80">
+              <button type="button" data-mode="cartesia" class="mode-btn flex flex-col items-start p-2.5 rounded-lg text-left transition bg-white text-indigo-700 shadow-sm border border-indigo-100">
+                <span class="text-xs font-bold flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+                  Cartesia AI API
+                </span>
+                <span class="text-[11px] text-slate-500 mt-0.5">Real TTS + exact SSE timings</span>
+              </button>
+
+              <button type="button" data-mode="demo" class="mode-btn flex flex-col items-start p-2.5 rounded-lg text-left transition text-slate-600 hover:text-slate-900">
+                <span class="text-xs font-bold flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  Instant Demo Mode
+                </span>
+                <span class="text-[11px] text-slate-500 mt-0.5">No API key &bull; Synth WAV</span>
+              </button>
+
+              <button type="button" data-mode="manual" class="mode-btn flex flex-col items-start p-2.5 rounded-lg text-left transition text-slate-600 hover:text-slate-900">
+                <span class="text-xs font-bold flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                  Manual / Tap-Sync
+                </span>
+                <span class="text-[11px] text-slate-500 mt-0.5">Upload audio + Spacebar sync</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- MODE 1 PANEL: CARTESIA AI API -->
+          <div id="mode-panel-cartesia" class="space-y-4 bg-indigo-50/40 p-4 rounded-xl border border-indigo-100">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <h3 class="text-xs font-bold text-indigo-950">Cartesia Sonic SSE Endpoint</h3>
+                <p class="text-[11px] text-slate-600 mt-0.5">Streams <code class="px-1 py-0.5 bg-white rounded border border-slate-200 text-[10px]">POST /tts/sse</code> with <code class="px-1 py-0.5 bg-white rounded border border-slate-200 text-[10px]">add_timestamps: true</code></p>
+              </div>
+              <a href="https://play.cartesia.ai" target="_blank" rel="noopener noreferrer" class="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 underline shrink-0">Get API Key &nearr;</a>
+            </div>
+
+            <!-- API Key Field -->
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label for="cartesia-api-key" class="block text-xs font-medium text-slate-700">Cartesia API Key</label>
+                <label class="inline-flex items-center gap-1.5 text-[11px] text-slate-500 cursor-pointer">
+                  <input id="cartesia-save-session" type="checkbox" checked class="rounded text-indigo-600 focus:ring-indigo-500" />
+                  <span>Remember in session</span>
+                </label>
+              </div>
+              <div class="relative flex items-center">
+                <input
+                  id="cartesia-api-key"
+                  type="password"
+                  placeholder="sk_car_..."
+                  autocomplete="off"
+                  class="w-full pr-16 pl-3.5 py-2 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <button id="btn-toggle-key" type="button" class="absolute right-2 px-2.5 py-1 text-xs font-medium text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100">
+                  Show
+                </button>
+              </div>
+            </div>
+
+            <!-- Model & Voice Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label for="cartesia-model" class="block text-xs font-medium text-slate-700 mb-1">Sonic Model</label>
+                <select id="cartesia-model" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="sonic-3">sonic-3 (Latest Ultra-Expressive)</option>
+                  <option value="sonic-2" selected>sonic-2 (Low-Latency Standard)</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="cartesia-voice-preset" class="block text-xs font-medium text-slate-700 mb-1">Voice Preset</label>
+                <select id="cartesia-voice-preset" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="a0e99841-438c-4a64-b679-ae501e7d6091">Narrator Man (Warm Baritone)</option>
+                  <option value="79a125e8-cd45-4c13-8a67-188112f4dd22">British Storyteller (Classic)</option>
+                  <option value="156fb8d2-335b-4950-9cb3-a2d33befec77">Warm Female Voice (Expressive)</option>
+                  <option value="custom">Custom Voice ID...</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Custom Voice ID Input -->
+            <div id="custom-voice-wrapper" class="hidden">
+              <label for="cartesia-custom-voice" class="block text-xs font-medium text-slate-700 mb-1">Custom Cartesia Voice UUID</label>
+              <input
+                id="cartesia-custom-voice"
+                type="text"
+                placeholder="e.g., 694f9389-aac1-45b6-b726-9d9369183238"
+                class="w-full px-3.5 py-2 rounded-xl border border-slate-300 bg-white text-sm font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <!-- Error Banner with Instant Demo Fallback -->
+            <div id="cartesia-error-box" class="hidden rounded-xl bg-rose-50 border border-rose-200 p-3.5 text-xs text-rose-800 space-y-2">
+              <div class="flex items-start gap-2">
+                <svg class="w-4 h-4 text-rose-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                <div class="flex-1">
+                  <p class="font-bold text-rose-900" id="cartesia-error-title">Cartesia API Request Failed</p>
+                  <p id="cartesia-error-detail" class="mt-0.5 leading-relaxed text-rose-700"></p>
+                </div>
+              </div>
+              <div class="pt-1 flex flex-wrap items-center gap-2">
+                <button id="btn-fallback-demo" type="button" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs transition cursor-pointer">
+                  Switch to Instant Demo Mode &amp; Generate
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- MODE 2 PANEL: INSTANT DEMO GENERATOR -->
+          <div id="mode-panel-demo" class="hidden space-y-3 bg-emerald-50/50 p-4 rounded-xl border border-emerald-200/70">
+            <div class="flex items-start gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z"/></svg>
+              </div>
+              <div>
+                <h3 class="text-xs font-bold text-emerald-950">Instant Acoustic Narration &amp; Syllable-Weighted Timing</h3>
+                <p class="text-[11px] text-emerald-800/90 mt-0.5 leading-relaxed">
+                  Synthesizes a pleasant, melodic ambient narration WAV file directly in your browser using <code class="px-1 bg-white/80 rounded">OfflineAudioContext</code> and computes natural syllable- and punctuation-weighted word timestamps—no API key required.
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 pt-1">
+              <label for="demo-pace" class="text-xs font-medium text-emerald-900">Narration Pace:</label>
+              <select id="demo-pace" class="px-3 py-1.5 rounded-lg border border-emerald-200 bg-white text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="0.88">Relaxed Storyteller (~135 WPM)</option>
+                <option value="1.0" selected>Natural Narrator (~155 WPM)</option>
+                <option value="1.2">Brisk Reader (~185 WPM)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- MODE 3 PANEL: MANUAL TAP-SYNC / UPLOAD AUDIO -->
+          <div id="mode-panel-manual" class="hidden space-y-4 bg-amber-50/50 p-4 rounded-xl border border-amber-200/70">
+            <div>
+              <h3 class="text-xs font-bold text-amber-950">Upload Audio &amp; Interactive Spacebar Tap-Sync</h3>
+              <p class="text-[11px] text-amber-900/80 mt-0.5">Upload an MP3/WAV/OGG narration file, then tap <kbd class="px-1.5 py-0.5 bg-white border border-amber-300 rounded text-[10px] font-mono">Spacebar</kbd> on each word as it plays, or paste existing JSON timestamps.</p>
+            </div>
+
+            <!-- File Uploader -->
+            <div>
+              <label for="manual-audio-file" class="block text-xs font-medium text-slate-700 mb-1">1. Select Audio File (.mp3, .wav, .ogg)</label>
+              <input
+                id="manual-audio-file"
+                type="file"
+                accept="audio/*"
+                class="block w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-amber-600 file:text-white hover:file:bg-amber-700 cursor-pointer bg-white rounded-xl border border-amber-200"
+              />
+              <p id="manual-file-status" class="text-[11px] text-slate-500 mt-1">No audio uploaded yet (or generate Demo audio first to practice Tap-Sync).</p>
+            </div>
+
+            <!-- Tap-Sync Recorder Box -->
+            <div class="bg-white rounded-xl border border-amber-200 p-3.5 space-y-3">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="text-xs font-bold text-slate-800">2. Interactive Tap-Sync Recorder</span>
+                <span id="tapsync-counter" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">0 / 0 words synced</span>
+              </div>
+
+              <!-- Live Prompt Strip -->
+              <div class="p-3 rounded-lg bg-slate-900 text-white text-center min-h-[68px] flex flex-col items-center justify-center">
+                <span id="tapsync-prev-word" class="text-[11px] text-slate-400 h-4">Ready to sync</span>
+                <span id="tapsync-current-word" class="text-lg font-bold text-amber-400 tracking-wide my-0.5">Press "Start Tap-Sync"</span>
+                <span id="tapsync-next-word" class="text-[11px] text-slate-400 h-4">Tap Spacebar or the button below on each word</span>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2">
+                <button id="btn-tapsync-start" type="button" class="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition cursor-pointer">
+                  Start Tap-Sync
+                </button>
+                <button id="btn-tapsync-tap" type="button" disabled class="flex-1 min-w-[140px] px-4 py-2 rounded-xl bg-indigo-600 disabled:bg-slate-200 disabled:text-slate-400 hover:bg-indigo-700 text-white text-xs font-bold transition cursor-pointer">
+                  Tap Word (Spacebar)
+                </button>
+                <button id="btn-tapsync-reset" type="button" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition cursor-pointer">
+                  Reset
+                </button>
+              </div>
+            </div>
+
+            <!-- Paste JSON Option -->
+            <details class="text-xs">
+              <summary class="font-semibold text-amber-900 cursor-pointer hover:underline">Or paste existing word timestamps JSON</summary>
+              <div class="mt-2 space-y-2">
+                <textarea id="manual-json-paste" rows="3" placeholder='[{"word":"Once","start":0.0,"end":0.35}, ...]' class="w-full p-2.5 rounded-xl border border-amber-200 bg-white font-mono text-[11px]"></textarea>
+                <button id="btn-apply-pasted-json" type="button" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold cursor-pointer">
+                  Load Pasted JSON
+                </button>
+              </div>
+            </details>
+          </div>
+
+          <!-- Primary CTA Button -->
+          <div class="pt-1">
+            <button
+              id="btn-generate-main"
+              type="button"
+              class="w-full py-3.5 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold text-sm shadow-sm hover:shadow transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <svg id="generate-spinner" class="hidden animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+              </svg>
+              <svg id="generate-icon" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+              </svg>
+              <span id="generate-btn-label">Generate Audio &amp; Word Data</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL: Generated Word-Level Data Inspector & Mini Player (5 columns on lg) -->
+      <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-2">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Word-Level Data Inspector</h2>
+            <p class="text-xs text-slate-500">Verify sync, fine-tune timings &amp; download assets</p>
+          </div>
+          <span id="inspector-status-pill" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600">
+            Awaiting Audio
+          </span>
+        </div>
+
+        <!-- Mini Audio Player & Live Highlight Test Strip -->
+        <div class="p-4 bg-slate-50 border-b border-slate-200/80 space-y-3">
+          <div class="flex items-center gap-3">
+            <button id="mini-play-btn" type="button" disabled class="w-10 h-10 rounded-full bg-indigo-600 disabled:bg-slate-300 hover:bg-indigo-700 text-white flex items-center justify-center shrink-0 shadow-xs transition cursor-pointer">
+              <svg id="mini-icon-play" class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              <svg id="mini-icon-pause" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </button>
+
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between text-[11px] font-medium text-slate-500 mb-1">
+                <span id="mini-time-current">0:00.0</span>
+                <span id="mini-source-label" class="truncate max-w-[140px] text-slate-400">No audio loaded</span>
+                <span id="mini-time-total">0:00.0</span>
+              </div>
+              <input id="mini-scrubber" type="range" min="0" max="100" step="0.1" value="0" disabled class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
+            </div>
+          </div>
+
+          <!-- Live Word Highlight Test Strip -->
+          <div class="bg-white rounded-xl border border-slate-200 px-3.5 py-2.5 flex items-center justify-center gap-2 min-h-[44px] overflow-hidden">
+            <span id="mini-strip-prev" class="text-xs text-slate-400 truncate max-w-[30%]">—</span>
+            <span id="mini-strip-active" class="px-2.5 py-0.5 rounded-md bg-indigo-600 text-white text-sm font-bold shadow-xs transition-all">Ready</span>
+            <span id="mini-strip-next" class="text-xs text-slate-400 truncate max-w-[30%]">—</span>
+          </div>
+        </div>
+
+        <!-- Inspector View Switcher & Quick Exports -->
+        <div class="px-4 py-2.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 bg-white">
+          <div class="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200/70">
+            <button id="view-table-btn" type="button" class="px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-slate-900 shadow-2xs cursor-pointer">Table View</button>
+            <button id="view-json-btn" type="button" class="px-2.5 py-1 rounded-md text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer">JSON View</button>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <button id="btn-copy-json" type="button" disabled class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-700 transition cursor-pointer" title="Copy JSON">
+              Copy JSON
+            </button>
+            <button id="btn-dl-json-stage1" type="button" disabled class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-700 transition cursor-pointer" title="Download word-timestamps.json">
+              .JSON
+            </button>
+            <button id="btn-dl-wav-stage1" type="button" disabled class="px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-700 transition cursor-pointer" title="Download story-audio.wav">
+              .WAV
+            </button>
+          </div>
+        </div>
+
+        <!-- Table / JSON Content Area -->
+        <div class="flex-1 max-h-[340px] overflow-y-auto">
+          <!-- Table View -->
+          <div id="inspector-table-container">
+            <table class="w-full text-left border-collapse">
+              <thead class="bg-slate-50 sticky top-0 z-10 text-[11px] font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-200">
+                <tr>
+                  <th class="py-2 px-3 w-10">#</th>
+                  <th class="py-2 px-3">Word</th>
+                  <th class="py-2 px-2.5 w-20">Start (s)</th>
+                  <th class="py-2 px-2.5 w-20">End (s)</th>
+                </tr>
+              </thead>
+              <tbody id="timestamps-table-body" class="divide-y divide-slate-100 text-xs">
+                <tr>
+                  <td colspan="4" class="py-12 px-4 text-center text-slate-400">
+                    Generate audio on the left or click <strong class="text-slate-600">Load Sample Story</strong> to inspect word timestamps.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- JSON View -->
+          <div id="inspector-json-container" class="hidden p-3 space-y-2">
+            <textarea id="inspector-json-editor" rows="13" spellcheck="false" class="w-full p-3 rounded-xl border border-slate-200 bg-slate-900 text-emerald-300 font-mono text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+            <div class="flex justify-end">
+              <button id="btn-save-json-edits" type="button" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition cursor-pointer">
+                Apply JSON Edits
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer CTA: Proceed to Final Story Page -->
+        <div class="p-4 bg-slate-50 border-t border-slate-200">
+          <button
+            id="btn-proceed-stage2"
+            type="button"
+            disabled
+            class="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-sm transition flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+          >
+            <span>Proceed to Final Story Page</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- STAGE 2: FINAL STORY PAGE PREVIEW & STANDALONE EXPORTER               -->
+    <!-- ===================================================================== -->
+    <section id="stage-2" class="hidden space-y-5">
+
+      <!-- Top Customization & Export Deliverables Bar -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+
+        <!-- Reader Customization Controls -->
+        <div class="flex flex-wrap items-center gap-3 sm:gap-4">
+          <!-- Theme Switcher -->
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs font-semibold text-slate-500">Theme:</span>
+            <div class="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200/80">
+              <button type="button" data-theme="light" class="reader-theme-btn px-2.5 py-1 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-2xs cursor-pointer">Clean Light</button>
+              <button type="button" data-theme="sepia" class="reader-theme-btn px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer">Warm Sepia</button>
+              <button type="button" data-theme="dark" class="reader-theme-btn px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer">Midnight Dark</button>
+            </div>
+          </div>
+
+          <!-- Font Size Control -->
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs font-semibold text-slate-500">Size:</span>
+            <div class="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200/80">
+              <button type="button" data-size="sm" class="reader-size-btn px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer">S</button>
+              <button type="button" data-size="md" class="reader-size-btn px-2.5 py-1 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-2xs cursor-pointer">M</button>
+              <button type="button" data-size="lg" class="reader-size-btn px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer">L</button>
+              <button type="button" data-size="xl" class="reader-size-btn px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer">XL</button>
+            </div>
+          </div>
+
+          <!-- Highlight Style Control -->
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs font-semibold text-slate-500">Highlight:</span>
+            <div class="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200/80">
+              <button type="button" data-hl="pill" class="reader-hl-btn px-2.5 py-1 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-2xs cursor-pointer">Soft Pill</button>
+              <button type="button" data-hl="underline" class="reader-hl-btn px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer">Underline Glow</button>
+              <button type="button" data-hl="karaoke" class="reader-hl-btn px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer">Karaoke Fill</button>
+            </div>
+          </div>
+
+          <!-- Auto-Scroll Toggle -->
+          <label class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200/80 text-xs font-medium text-slate-700 cursor-pointer select-none">
+            <input id="reader-autoscroll" type="checkbox" checked class="rounded text-indigo-600 focus:ring-indigo-500" />
+            <span>Auto-scroll</span>
+          </label>
+        </div>
+
+        <!-- Export Deliverables Action Group -->
+        <div class="flex flex-wrap items-center gap-2 pt-2 xl:pt-0 border-t xl:border-t-0 border-slate-100">
+          <button id="btn-export-json" type="button" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 transition cursor-pointer">
+            <svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <span>timestamps.json</span>
+          </button>
+
+          <button id="btn-export-wav" type="button" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 transition cursor-pointer">
+            <svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <span>story-audio.wav</span>
+          </button>
+
+          <button id="btn-export-html" type="button" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <span>Download Final Story Page (story.html)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Interactive Story Canvas Wrapper -->
+      <div id="story-reader-surface" class="theme-light hl-pill rounded-2xl border border-slate-200 shadow-sm bg-white text-slate-900 transition-colors duration-200 overflow-hidden flex flex-col">
+
+        <!-- Interactive Story Article Container -->
+        <article class="max-w-3xl w-full mx-auto px-6 sm:px-10 pt-10 pb-28">
+          <div class="mb-6 pb-5 border-b border-current/10 flex flex-wrap items-center justify-between gap-2">
+            <span class="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider opacity-60">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+              Interactive Synchronized Story
+            </span>
+            <span class="text-xs opacity-60">Click any word to seek &amp; play</span>
+          </div>
+
+          <h1 id="reader-story-title" class="font-serif text-2xl sm:text-4xl font-bold tracking-tight mb-8 leading-tight">
+            Untitled Story
+          </h1>
+
+          <div id="reader-story-body" class="font-serif text-lg leading-relaxed space-y-6">
+            <!-- Dynamically populated paragraphs with interactive word spans -->
+          </div>
+        </article>
+
+        <!-- Sticky Bottom Audio Control Bar -->
+        <div id="reader-player-bar" class="sticky bottom-0 z-20 border-t border-slate-200/80 bg-white/95 backdrop-blur-md px-4 sm:px-8 py-3.5 transition-colors duration-200">
+          <div class="max-w-4xl mx-auto flex flex-col gap-2.5">
+
+            <!-- Progress Timeline -->
+            <div class="flex items-center gap-3">
+              <span id="reader-time-current" class="text-xs font-mono font-medium opacity-75 w-12 text-right">0:00</span>
+              <input id="reader-scrubber" type="range" min="0" max="100" step="0.05" value="0" class="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
+              <span id="reader-time-total" class="text-xs font-mono font-medium opacity-75 w-12">0:00</span>
+            </div>
+
+            <!-- Transport Controls -->
+            <div class="flex items-center justify-between gap-2">
+              <button id="btn-back-to-stage1" type="button" class="text-xs font-semibold opacity-70 hover:opacity-100 flex items-center gap-1 py-1.5 px-2 rounded-lg cursor-pointer">
+                <span>&larr; Edit Audio / Timings</span>
+              </button>
+
+              <div class="flex items-center gap-2 sm:gap-3">
+                <!-- Skip -5s -->
+                <button id="reader-skip-back" type="button" class="p-2 rounded-xl hover:bg-black/5 transition text-xs font-bold flex items-center gap-1 cursor-pointer" title="Rewind 5 seconds">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z"/></svg>
+                  <span class="hidden sm:inline">-5s</span>
+                </button>
+
+                <!-- Main Play / Pause Button -->
+                <button id="reader-play-btn" type="button" class="w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-md transition cursor-pointer" title="Play / Pause">
+                  <svg id="reader-icon-play" class="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                  <svg id="reader-icon-pause" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                </button>
+
+                <!-- Skip +5s -->
+                <button id="reader-skip-fwd" type="button" class="p-2 rounded-xl hover:bg-black/5 transition text-xs font-bold flex items-center gap-1 cursor-pointer" title="Forward 5 seconds">
+                  <span class="hidden sm:inline">+5s</span>
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z"/></svg>
+                </button>
+              </div>
+
+              <!-- Playback Speed Selector -->
+              <div class="flex items-center gap-1.5">
+                <label for="reader-speed" class="text-[11px] font-medium opacity-65 hidden sm:inline">Speed:</label>
+                <select id="reader-speed" class="px-2.5 py-1.5 rounded-lg border border-current/15 bg-transparent text-xs font-bold focus:outline-none cursor-pointer">
+                  <option value="0.75" class="text-slate-900">0.75x</option>
+                  <option value="1" selected class="text-slate-900">1.0x</option>
+                  <option value="1.25" class="text-slate-900">1.25x</option>
+                  <option value="1.5" class="text-slate-900">1.5x</option>
+                </select>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Hidden Shared HTML5 Audio Element -->
+  <audio id="studio-audio" preload="auto"></audio>
+
+  <script>
+    /**
+     * StorySync Studio — Complete Two-Stage Word-Level Audio & Story Builder
+     * Self-contained application logic with error handling, Web Audio synthesis,
+     * Cartesia SSE streaming parser, Tap-Sync recorder, and standalone HTML exporter.
+     */
+    (function () {
+      'use strict';
+
+      // =========================================================================
+      // 1. APPLICATION STATE
+      // =========================================================================
+      const state = {
+        activeTab: 1,
+        generationMode: 'cartesia', // 'cartesia' | 'demo' | 'manual'
+        storyTitle: '',
+        storyText: '',
+        words: [], // Array of { index, word, start, end, paragraphIndex }
+        audioBlob: null,
+        audioUrl: null,
+        audioFilename: 'story-audio.wav',
+        audioMimeType: 'audio/wav',
+        sourceLabel: '',
+        isGenerating: false,
+        activeWordIndex: -1,
+        rafId: null,
+        // Reader customization settings
+        readerTheme: 'light', // 'light' | 'sepia' | 'dark'
+        readerSize: 'md',     // 'sm' | 'md' | 'lg' | 'xl'
+        readerHighlight: 'pill', // 'pill' | 'underline' | 'karaoke'
+        autoScroll: true,
+        // Manual Tap-Sync state
+        tapSync: {
+          active: false,
+          tokens: [],
+          currentIndex: 0,
+          records: [],
+        },
+      };
+
+      // =========================================================================
+      // 2. DOM ELEMENT REFERENCES
+      // =========================================================================
+      const els = {
+        audio: document.getElementById('studio-audio'),
+        toastContainer: document.getElementById('toast-container'),
+        // Tabs
+        tabBtn1: document.getElementById('tab-btn-1'),
+        tabBtn2: document.getElementById('tab-btn-2'),
+        tabBadge2: document.getElementById('tab-badge-2'),
+        stage1: document.getElementById('stage-1'),
+        stage2: document.getElementById('stage-2'),
+        // Sample buttons
+        btnLoadSample: document.getElementById('btn-load-sample'),
+        btnLoadSampleMobile: document.getElementById('btn-load-sample-mobile'),
+        // Story inputs
+        inputTitle: document.getElementById('input-story-title'),
+        inputText: document.getElementById('input-story-text'),
+        storyStatsBadge: document.getElementById('story-stats-badge'),
+        // Mode buttons & panels
+        modeBtns: document.querySelectorAll('.mode-btn'),
+        modePanelCartesia: document.getElementById('mode-panel-cartesia'),
+        modePanelDemo: document.getElementById('mode-panel-demo'),
+        modePanelManual: document.getElementById('mode-panel-manual'),
+        // Cartesia controls
+        cartesiaKey: document.getElementById('cartesia-api-key'),
+        cartesiaSaveSession: document.getElementById('cartesia-save-session'),
+        btnToggleKey: document.getElementById('btn-toggle-key'),
+        cartesiaModel: document.getElementById('cartesia-model'),
+        cartesiaVoicePreset: document.getElementById('cartesia-voice-preset'),
+        customVoiceWrapper: document.getElementById('custom-voice-wrapper'),
+        cartesiaCustomVoice: document.getElementById('cartesia-custom-voice'),
+        cartesiaErrorBox: document.getElementById('cartesia-error-box'),
+        cartesiaErrorTitle: document.getElementById('cartesia-error-title'),
+        cartesiaErrorDetail: document.getElementById('cartesia-error-detail'),
+        btnFallbackDemo: document.getElementById('btn-fallback-demo'),
+        // Demo controls
+        demoPace: document.getElementById('demo-pace'),
+        // Manual Tap-Sync controls
+        manualAudioFile: document.getElementById('manual-audio-file'),
+        manualFileStatus: document.getElementById('manual-file-status'),
+        tapsyncCounter: document.getElementById('tapsync-counter'),
+        tapsyncPrevWord: document.getElementById('tapsync-prev-word'),
+        tapsyncCurrentWord: document.getElementById('tapsync-current-word'),
+        tapsyncNextWord: document.getElementById('tapsync-next-word'),
+        btnTapsyncStart: document.getElementById('btn-tapsync-start'),
+        btnTapsyncTap: document.getElementById('btn-tapsync-tap'),
+        btnTapsyncReset: document.getElementById('btn-tapsync-reset'),
+        manualJsonPaste: document.getElementById('manual-json-paste'),
+        btnApplyPastedJson: document.getElementById('btn-apply-pasted-json'),
+        // Main Generate CTA
+        btnGenerateMain: document.getElementById('btn-generate-main'),
+        generateSpinner: document.getElementById('generate-spinner'),
+        generateIcon: document.getElementById('generate-icon'),
+        generateBtnLabel: document.getElementById('generate-btn-label'),
+        // Right Panel Inspector & Mini Player
+        inspectorStatusPill: document.getElementById('inspector-status-pill'),
+        miniPlayBtn: document.getElementById('mini-play-btn'),
+        miniIconPlay: document.getElementById('mini-icon-play'),
+        miniIconPause: document.getElementById('mini-icon-pause'),
+        miniTimeCurrent: document.getElementById('mini-time-current'),
+        miniTimeTotal: document.getElementById('mini-time-total'),
+        miniSourceLabel: document.getElementById('mini-source-label'),
+        miniScrubber: document.getElementById('mini-scrubber'),
+        miniStripPrev: document.getElementById('mini-strip-prev'),
+        miniStripActive: document.getElementById('mini-strip-active'),
+        miniStripNext: document.getElementById('mini-strip-next'),
+        viewTableBtn: document.getElementById('view-table-btn'),
+        viewJsonBtn: document.getElementById('view-json-btn'),
+        inspectorTableContainer: document.getElementById('inspector-table-container'),
+        inspectorJsonContainer: document.getElementById('inspector-json-container'),
+        timestampsTableBody: document.getElementById('timestamps-table-body'),
+        inspectorJsonEditor: document.getElementById('inspector-json-editor'),
+        btnSaveJsonEdits: document.getElementById('btn-save-json-edits'),
+        btnCopyJson: document.getElementById('btn-copy-json'),
+        btnDlJsonStage1: document.getElementById('btn-dl-json-stage1'),
+        btnDlWavStage1: document.getElementById('btn-dl-wav-stage1'),
+        btnProceedStage2: document.getElementById('btn-proceed-stage2'),
+        // Stage 2 Reader & Export
+        readerThemeBtns: document.querySelectorAll('.reader-theme-btn'),
+        readerSizeBtns: document.querySelectorAll('.reader-size-btn'),
+        readerHlBtns: document.querySelectorAll('.reader-hl-btn'),
+        readerAutoscroll: document.getElementById('reader-autoscroll'),
+        btnExportJson: document.getElementById('btn-export-json'),
+        btnExportWav: document.getElementById('btn-export-wav'),
+        btnExportHtml: document.getElementById('btn-export-html'),
+        storyReaderSurface: document.getElementById('story-reader-surface'),
+        readerStoryTitle: document.getElementById('reader-story-title'),
+        readerStoryBody: document.getElementById('reader-story-body'),
+        readerPlayerBar: document.getElementById('reader-player-bar'),
+        readerTimeCurrent: document.getElementById('reader-time-current'),
+        readerTimeTotal: document.getElementById('reader-time-total'),
+        readerScrubber: document.getElementById('reader-scrubber'),
+        btnBackToStage1: document.getElementById('btn-back-to-stage1'),
+        readerSkipBack: document.getElementById('reader-skip-back'),
+        readerPlayBtn: document.getElementById('reader-play-btn'),
+        readerIconPlay: document.getElementById('reader-icon-play'),
+        readerIconPause: document.getElementById('reader-icon-pause'),
+        readerSkipFwd: document.getElementById('reader-skip-fwd'),
+        readerSpeed: document.getElementById('reader-speed'),
+      };
+
+      // =========================================================================
+      // 3. UTILITIES (TOASTS, CLIPBOARD, FORMATTING, TOKENIZATION)
+      // =========================================================================
+      function showToast(message, type = 'info') {
+        const colors = {
+          info: 'bg-slate-900 text-white border-slate-700',
+          success: 'bg-emerald-700 text-white border-emerald-600',
+          warning: 'bg-amber-600 text-white border-amber-500',
+          error: 'bg-rose-700 text-white border-rose-600',
+        };
+        const toast = document.createElement('div');
+        toast.className = `pointer-events-auto px-4 py-3 rounded-xl border shadow-lg text-xs font-medium flex items-center justify-between gap-3 transition-all duration-200 ${colors[type] || colors.info}`;
+        toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+        els.toastContainer.appendChild(toast);
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          toast.style.transform = 'translateY(-6px)';
+          setTimeout(() => toast.remove(), 220);
+        }, 3400);
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function formatTime(seconds, showTenths = false) {
+        if (!Number.isFinite(seconds) || seconds < 0) seconds = 0;
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        if (showTenths) {
+          const tenths = Math.floor((seconds % 1) * 10);
+          return `${mins}:${secs.toString().padStart(2, '0')}.${tenths}`;
+        }
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+      }
+
+      function copyTextToClipboard(text) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand('copy');
+          showToast('Word timestamps JSON copied to clipboard!', 'success');
+        } catch (err) {
+          showToast('Unable to copy automatically. Please select and copy from JSON view.', 'warning');
+        }
+        document.body.removeChild(ta);
+      }
+
+      function triggerDownload(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+      }
+
+      /**
+       * Tokenizes story text into words while preserving paragraph indices.
+       */
+      function tokenizeStoryWithParagraphs(text) {
+        const paragraphs = text
+          .trim()
+          .split(/\n\s*\n+/)
+          .map((p) => p.trim())
+          .filter(Boolean);
+
+        const tokens = [];
+        paragraphs.forEach((para, pIdx) => {
+          const matches = para.match(/\S+/g) || [];
+          matches.forEach((word) => {
+            tokens.push({
+              index: tokens.length,
+              word,
+              paragraphIndex: pIdx,
+            });
+          });
+        });
+        return tokens;
+      }
+
+      /**
+       * Maps external word tokens (e.g., from Cartesia SSE) onto paragraph indices
+       * from the source story text so multi-paragraph formatting stays intact.
+       */
+      function assignParagraphIndicesToExternalWords(externalWords, sourceText) {
+        const paragraphs = sourceText
+          .trim()
+          .split(/\n\s*\n+/)
+          .map((p) => p.trim())
+          .filter(Boolean);
+
+        if (paragraphs.length <= 1) {
+          return externalWords.map((w, idx) => ({ ...w, index: idx, paragraphIndex: 0 }));
+        }
+
+        // Build cumulative character counts per paragraph (alphanumeric normalized)
+        const paraCumLengths = [];
+        let running = 0;
+        paragraphs.forEach((p) => {
+          const cleanLen = p.replace(/\s+/g, '').length;
+          running += cleanLen;
+          paraCumLengths.push(running);
+        });
+
+        let cursor = 0;
+        return externalWords.map((w, idx) => {
+          const tokenLen = String(w.word || '').replace(/\s+/g, '').length || 1;
+          const midPoint = cursor + tokenLen * 0.5;
+          cursor += tokenLen;
+
+          let pIdx = paraCumLengths.findIndex((cum) => midPoint <= cum);
+          if (pIdx === -1) pIdx = paragraphs.length - 1;
+
+          return {
+            index: idx,
+            word: w.word,
+            start: Number(Number(w.start).toFixed(3)),
+            end: Number(Number(w.end).toFixed(3)),
+            paragraphIndex: pIdx,
+          };
+        });
+      }
+
+      function updateStoryStats() {
+        const text = els.inputText.value.trim();
+        const words = text ? text.split(/\s+/).filter(Boolean) : [];
+        const estSec = Math.round(words.length / 2.55);
+        els.storyStatsBadge.textContent = `${words.length} word${words.length === 1 ? '' : 's'} • ~${estSec}s`;
+      }
+
+      // =========================================================================
+      // 4. WAV ENCODING & AUDIO SYNTHESIS HELPERS
+      // =========================================================================
+
+      /**
+       * Converts a Float32Array (-1.0 to 1.0) at a given sampleRate into a 16-bit PCM WAV Blob.
+       */
+      function encodeFloat32ToWavBlob(float32Samples, sampleRate) {
+        const numSamples = float32Samples.length;
+        const bytesPerSample = 2; // 16-bit PCM
+        const blockAlign = bytesPerSample;
+        const byteRate = sampleRate * blockAlign;
+        const dataSize = numSamples * bytesPerSample;
+        const buffer = new ArrayBuffer(44 + dataSize);
+        const view = new DataView(buffer);
+
+        function writeString(offset, str) {
+          for (let i = 0; i < str.length; i++) {
+            view.setUint8(offset + i, str.charCodeAt(i));
+          }
+        }
+
+        writeString(0, 'RIFF');
+        view.setUint32(4, 36 + dataSize, true);
+        writeString(8, 'WAVE');
+        writeString(12, 'fmt ');
+        view.setUint32(16, 16, true); // PCM chunk size
+        view.setUint16(20, 1, true);  // PCM format
+        view.setUint16(22, 1, true);  // Mono
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, byteRate, true);
+        view.setUint16(32, blockAlign, true);
+        view.setUint16(34, 16, true); // Bits per sample
+        writeString(36, 'data');
+        view.setUint32(40, dataSize, true);
+
+        let offset = 44;
+        for (let i = 0; i < numSamples; i++) {
+          let s = Math.max(-1, Math.min(1, float32Samples[i]));
+          s = s < 0 ? s * 0x8000 : s * 0x7fff;
+          view.setInt16(offset, s, true);
+          offset += 2;
+        }
+
+        return new Blob([buffer], { type: 'audio/wav' });
+      }
+
+      /**
+       * Estimates realistic syllable count for natural word duration timing.
+       */
+      function estimateSyllables(word) {
+        const clean = word.toLowerCase().replace(/[^a-z]/g, '');
+        if (!clean) return 1;
+        if (clean.length <= 3) return 1;
+        const stripped = clean.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, '').replace(/^y/, '');
+        const matches = stripped.match(/[aeiouy]{1,2}/g);
+        return Math.max(1, matches ? matches.length : 1);
+      }
+
+      /**
+       * Instant Demo Generator:
+       * Computes syllable & punctuation-weighted word timestamps and renders
+       * a warm, gentle acoustic cadence WAV via OfflineAudioContext.
+       */
+      async function generateDemoAudioAndTimestamps(storyText, paceMultiplier = 1.0) {
+        const tokens = tokenizeStoryWithParagraphs(storyText);
+        if (tokens.length === 0) {
+          throw new Error('Please enter some story text first.');
+        }
+
+        const baseSyllableSec = 0.175 / paceMultiplier;
+        let currentTime = 0.25; // Initial breath lead-in
+        const timedWords = [];
+
+        for (let i = 0; i < tokens.length; i++) {
+          const tok = tokens[i];
+          const syllables = estimateSyllables(tok.word);
+          const speakDuration = Math.max(0.18, syllables * baseSyllableSec + 0.06);
+          const start = Number(currentTime.toFixed(3));
+          const end = Number((currentTime + speakDuration).toFixed(3));
+
+          timedWords.push({
+            index: i,
+            word: tok.word,
+            start,
+            end,
+            paragraphIndex: tok.paragraphIndex,
+          });
+
+          // Determine natural pause after word based on punctuation & paragraph boundary
+          let pause = 0.06 / paceMultiplier;
+          if (/[,;:—–-]$/.test(tok.word)) pause = 0.24 / paceMultiplier;
+          if (/[.!?]["'”’)]?$/.test(tok.word)) pause = 0.48 / paceMultiplier;
+          if (i < tokens.length - 1 && tokens[i + 1].paragraphIndex !== tok.paragraphIndex) {
+            pause = 0.72 / paceMultiplier;
+          }
+
+          currentTime = end + pause;
+        }
+
+        const totalDuration = currentTime + 0.45;
+        const sampleRate = 22050;
+        const totalFrames = Math.ceil(totalDuration * sampleRate);
+
+        const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+        const offlineCtx = new OfflineCtx(1, totalFrames, sampleRate);
+
+        // Pentatonic scale frequencies (C4, D4, E4, G4, A4, C5) for soothing story cadence
+        const scale = [261.63, 293.66, 329.63, 392.0, 440.0, 523.25];
+
+        // Subtle warm ambient pad bed
+        const padOsc = offlineCtx.createOscillator();
+        const padGain = offlineCtx.createGain();
+        padOsc.type = 'sine';
+        padOsc.frequency.setValueAtTime(130.81, 0); // C3
+        padGain.gain.setValueAtTime(0.0001, 0);
+        padGain.gain.linearRampToValueAtTime(0.035, 0.4);
+        padGain.gain.setValueAtTime(0.035, Math.max(0.5, totalDuration - 0.5));
+        padGain.gain.linearRampToValueAtTime(0.0001, totalDuration);
+        padOsc.connect(padGain);
+        padGain.connect(offlineCtx.destination);
+        padOsc.start(0);
+        padOsc.stop(totalDuration);
+
+        // Acoustic melodic pulse aligned to every single word's [start, end]
+        timedWords.forEach((w, idx) => {
+          const isSentenceEnd = /[.!?]["'”’)]?$/.test(w.word);
+          const freq = isSentenceEnd ? 261.63 : scale[(idx + estimateSyllables(w.word)) % scale.length];
+          const dur = Math.max(0.14, w.end - w.start);
+
+          const osc = offlineCtx.createOscillator();
+          const harmonic = offlineCtx.createOscillator();
+          const gain = offlineCtx.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, w.start);
+
+          harmonic.type = 'triangle';
+          harmonic.frequency.setValueAtTime(freq * 2, w.start);
+
+          const harmGain = offlineCtx.createGain();
+          harmGain.gain.setValueAtTime(0.18, w.start);
+
+          gain.gain.setValueAtTime(0.0001, w.start);
+          gain.gain.linearRampToValueAtTime(0.14, w.start + 0.025);
+          gain.gain.exponentialRampToValueAtTime(0.001, w.start + dur);
+
+          osc.connect(gain);
+          harmonic.connect(harmGain);
+          harmGain.connect(gain);
+          gain.connect(offlineCtx.destination);
+
+          osc.start(w.start);
+          harmonic.start(w.start);
+          osc.stop(w.start + dur + 0.02);
+          harmonic.stop(w.start + dur + 0.02);
+        });
+
+        const renderedBuffer = await offlineCtx.startRendering();
+        const channelData = renderedBuffer.getChannelData(0);
+        const wavBlob = encodeFloat32ToWavBlob(channelData, sampleRate);
+
+        return {
+          wavBlob,
+          words: timedWords,
+        };
+      }
+
+      // =========================================================================
+      // 5. CARTESIA AI SSE STREAMING ENGINE
+      // =========================================================================
+      function base64ToUint8Array(base64) {
+        const binary = atob(base64);
+        const len = binary.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes;
+      }
+
+      async function generateWithCartesiaSSE({ apiKey, modelId, voiceId, transcript }) {
+        const response = await fetch('https://api.cartesia.ai/tts/sse', {
+          method: 'POST',
+          headers: {
+            'X-API-Key': apiKey,
+            'Cartesia-Version': '2024-11-13',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model_id: modelId,
+            transcript: transcript,
+            voice: {
+              mode: 'id',
+              id: voiceId,
+            },
+            output_format: {
+              container: 'raw',
+              encoding: 'pcm_f32le',
+              sample_rate: 44100,
+            },
+            add_timestamps: true,
+          }),
+        });
+
+        if (!response.ok) {
+          let errText = '';
+          try {
+            errText = await response.text();
+          } catch (_) {}
+          throw new Error(`HTTP ${response.status}: ${errText || response.statusText || 'Request rejected by Cartesia API'}`);
+        }
+
+        if (!response.body) {
+          throw new Error('ReadableStream not supported in this browser environment.');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let sseBuffer = '';
+
+        const audioChunks = [];
+        let totalAudioBytes = 0;
+        const rawWords = [];
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          sseBuffer += decoder.decode(value, { stream: true });
+          const lines = sseBuffer.split(/\r?\n/);
+          sseBuffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.startsWith('data:')) continue;
+
+            const payloadStr = trimmed.slice(5).trim();
+            if (payloadStr === '[DONE]') continue;
+
+            let evt;
+            try {
+              evt = JSON.parse(payloadStr);
+            } catch (_) {
+              continue;
+            }
+
+            if (evt.type === 'error' || evt.error) {
+              throw new Error(evt.error || evt.message || 'Cartesia stream returned an error event.');
+            }
+
+            // Audio chunk handling (base64 pcm_f32le)
+            if (evt.type === 'chunk' && evt.data) {
+              const bytes = base64ToUint8Array(evt.data);
+              audioChunks.push(bytes);
+              totalAudioBytes += bytes.byteLength;
+            }
+
+            // Word-level timestamps handling
+            if (evt.type === 'timestamps' && evt.word_timestamps) {
+              const wt = evt.word_timestamps;
+              const wArr = wt.words || [];
+              const sArr = wt.start || [];
+              const eArr = wt.end || [];
+              for (let i = 0; i < wArr.length; i++) {
+                rawWords.push({
+                  word: wArr[i],
+                  start: sArr[i] ?? 0,
+                  end: eArr[i] ?? (sArr[i] ?? 0) + 0.25,
+                });
+              }
+            }
+          }
+        }
+
+        if (totalAudioBytes === 0) {
+          throw new Error('No audio chunks were received from Cartesia SSE stream.');
+        }
+
+        // Concatenate PCM byte chunks into aligned Float32Array
+        const alignedByteLen = totalAudioBytes - (totalAudioBytes % 4);
+        const combinedBytes = new Uint8Array(alignedByteLen);
+        let offset = 0;
+        for (const chunk of audioChunks) {
+          const copyLen = Math.min(chunk.byteLength, alignedByteLen - offset);
+          if (copyLen <= 0) break;
+          combinedBytes.set(chunk.subarray(0, copyLen), offset);
+          offset += copyLen;
+        }
+
+        const float32Samples = new Float32Array(combinedBytes.buffer);
+        const wavBlob = encodeFloat32ToWavBlob(float32Samples, 44100);
+
+        // Fallback if timestamps were omitted for any reason
+        let mappedWords;
+        if (rawWords.length > 0) {
+          mappedWords = assignParagraphIndicesToExternalWords(rawWords, transcript);
+        } else {
+          const fallbackDemo = await generateDemoAudioAndTimestamps(transcript, 1.0);
+          mappedWords = fallbackDemo.words;
+        }
+
+        return {
+          wavBlob,
+          words: mappedWords,
+        };
+      }
+
+      // =========================================================================
+      // 6. STATE APPLICATION & AUDIO BINDING
+      // =========================================================================
+      function applyGeneratedStoryData({ title, text, words, audioBlob, filename, mimeType, sourceLabel }) {
+        state.storyTitle = title || 'Untitled Story';
+        state.storyText = text;
+        state.words = words;
+        state.audioBlob = audioBlob;
+        state.audioFilename = filename || 'story-audio.wav';
+        state.audioMimeType = mimeType || audioBlob.type || 'audio/wav';
+        state.sourceLabel = sourceLabel || 'Generated Audio';
+        state.activeWordIndex = -1;
+
+        if (state.audioUrl) {
+          URL.revokeObjectURL(state.audioUrl);
+        }
+        state.audioUrl = URL.createObjectURL(audioBlob);
+        els.audio.src = state.audioUrl;
+        els.audio.load();
+
+        // Update Stage 1 Inspector UI
+        els.inspectorStatusPill.textContent = `${words.length} Words Ready`;
+        els.inspectorStatusPill.className = 'px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800';
+        els.miniSourceLabel.textContent = state.sourceLabel;
+
+        els.miniPlayBtn.disabled = false;
+        els.miniScrubber.disabled = false;
+        els.btnCopyJson.disabled = false;
+        els.btnDlJsonStage1.disabled = false;
+        els.btnDlWavStage1.disabled = false;
+        els.btnProceedStage2.disabled = false;
+
+        els.tabBadge2.className = 'w-5 h-5 rounded-full bg-emerald-500 text-white text-[11px] flex items-center justify-center font-bold';
+
+        renderTimestampsInspector();
+        renderFinalStoryReader();
+      }
+
+      function renderTimestampsInspector() {
+        // 1. Render Table Rows
+        if (!state.words.length) {
+          els.timestampsTableBody.innerHTML = `
+            <tr><td colspan="4" class="py-12 px-4 text-center text-slate-400">No word timestamps generated yet.</td></tr>
+          `;
+          els.inspectorJsonEditor.value = '[]';
+          return;
+        }
+
+        const rowsHtml = state.words
+          .map(
+            (w, idx) => `
+            <tr data-row-idx="${idx}" class="hover:bg-indigo-50/40 transition-colors">
+              <td class="py-1.5 px-3 font-mono text-[11px] text-slate-400">${idx + 1}</td>
+              <td class="py-1.5 px-3">
+                <input type="text" data-field="word" data-idx="${idx}" value="${escapeHtml(w.word)}" class="ts-cell-input w-full bg-transparent border border-transparent hover:border-slate-200 focus:border-indigo-400 focus:bg-white rounded px-1.5 py-0.5 font-medium text-slate-800 focus:outline-none" />
+              </td>
+              <td class="py-1.5 px-2">
+                <input type="number" step="0.01" min="0" data-field="start" data-idx="${idx}" value="${w.start.toFixed(2)}" class="ts-cell-input w-full bg-transparent border border-transparent hover:border-slate-200 focus:border-indigo-400 focus:bg-white rounded px-1.5 py-0.5 font-mono text-[11px] text-slate-700 focus:outline-none" />
+              </td>
+              <td class="py-1.5 px-2">
+                <input type="number" step="0.01" min="0" data-field="end" data-idx="${idx}" value="${w.end.toFixed(2)}" class="ts-cell-input w-full bg-transparent border border-transparent hover:border-slate-200 focus:border-indigo-400 focus:bg-white rounded px-1.5 py-0.5 font-mono text-[11px] text-slate-700 focus:outline-none" />
+              </td>
+            </tr>
+          `
+          )
+          .join('');
+
+        els.timestampsTableBody.innerHTML = rowsHtml;
+
+        // 2. Sync JSON Editor
+        const exportObj = buildStructuredJsonPayload();
+        els.inspectorJsonEditor.value = JSON.stringify(exportObj, null, 2);
+      }
+
+      function buildStructuredJsonPayload() {
+        return {
+          title: state.storyTitle,
+          audioFile: state.audioFilename,
+          words: state.words.map((w, idx) => ({
+            index: idx,
+            word: w.word,
+            start: Number(Number(w.start).toFixed(3)),
+            end: Number(Number(w.end).toFixed(3)),
+            paragraphIndex: w.paragraphIndex ?? 0,
+          })),
+        };
+      }
+
+      // =========================================================================
+      // 7. STAGE 2: FINAL STORY READER RENDERER & RAF SYNC LOOP
+      // =========================================================================
+      let readerWordSpans = [];
+
+      function renderFinalStoryReader() {
+        els.readerStoryTitle.textContent = state.storyTitle || 'Untitled Story';
+
+        if (!state.words.length) {
+          els.readerStoryBody.innerHTML = `<p class="opacity-60 italic">No story generated yet. Return to Step 1 to generate audio and word data.</p>`;
+          readerWordSpans = [];
+          return;
+        }
+
+        // Group words by paragraphIndex
+        const paraMap = new Map();
+        state.words.forEach((w, idx) => {
+          const pIdx = w.paragraphIndex ?? 0;
+          if (!paraMap.has(pIdx)) paraMap.set(pIdx, []);
+          paraMap.get(pIdx).push({ ...w, index: idx });
+        });
+
+        const sortedParaKeys = Array.from(paraMap.keys()).sort((a, b) => a - b);
+        const paragraphsHtml = sortedParaKeys
+          .map((pKey) => {
+            const pWords = paraMap.get(pKey);
+            const spansHtml = pWords
+              .map(
+                (w) =>
+                  `<span class="story-word" data-index="${w.index}" data-start="${w.start}" data-end="${w.end}">${escapeHtml(w.word)}</span>`
+              )
+              .join(' ');
+            return `<p>${spansHtml}</p>`;
+          })
+          .join('');
+
+        els.readerStoryBody.innerHTML = paragraphsHtml;
+        readerWordSpans = Array.from(els.readerStoryBody.querySelectorAll('.story-word'));
+
+        // Click any word to seek immediately & play
+        readerWordSpans.forEach((span) => {
+          span.addEventListener('click', () => {
+            const startTime = parseFloat(span.dataset.start);
+            if (Number.isFinite(startTime) && els.audio.src) {
+              els.audio.currentTime = Math.max(0, startTime);
+              els.audio.play().catch(() => {});
+              syncHighlightAtTime(startTime, true);
+            }
+          });
+        });
+      }
+
+      /**
+       * Finds active word index at time `t` and updates both Stage 1 mini strip
+       * and Stage 2 interactive story reader spans at 60fps.
+       */
+      function syncHighlightAtTime(t, forceScroll = false) {
+        const words = state.words;
+        if (!words.length) return;
+
+        // Binary search / linear lookup for current word
+        let activeIdx = -1;
+        let low = 0;
+        let high = words.length - 1;
+
+        while (low <= high) {
+          const mid = (low + high) >> 1;
+          const w = words[mid];
+          if (t >= w.start && t <= w.end) {
+            activeIdx = mid;
+            break;
+          } else if (t < w.start) {
+            high = mid - 1;
+          } else {
+            low = mid + 1;
+          }
+        }
+
+        // If between two words (pause gap), keep subtle awareness of completed words
+        let completedBeforeIdx = activeIdx;
+        if (activeIdx === -1) {
+          for (let i = words.length - 1; i >= 0; i--) {
+            if (t > words[i].end) {
+              completedBeforeIdx = i;
+              break;
+            }
+          }
+        }
+
+        // Update Stage 1 Mini Strip
+        if (activeIdx !== -1) {
+          els.miniStripPrev.textContent = activeIdx > 0 ? words[activeIdx - 1].word : '•';
+          els.miniStripActive.textContent = words[activeIdx].word;
+          els.miniStripNext.textContent = activeIdx < words.length - 1 ? words[activeIdx + 1].word : '•';
+        } else if (completedBeforeIdx >= 0) {
+          els.miniStripPrev.textContent = words[completedBeforeIdx].word;
+          els.miniStripActive.textContent = '…';
+          els.miniStripNext.textContent = completedBeforeIdx < words.length - 1 ? words[completedBeforeIdx + 1].word : 'End';
+        }
+
+        // Update Stage 2 Reader Spans
+        for (let i = 0; i < readerWordSpans.length; i++) {
+          const span = readerWordSpans[i];
+          if (i === activeIdx) {
+            if (!span.classList.contains('is-active')) {
+              span.classList.add('is-active');
+              span.classList.remove('is-past');
+            }
+            // Update intra-word progress for Karaoke Fill mode
+            const w = words[i];
+            const dur = Math.max(0.05, w.end - w.start);
+            const pct = Math.min(100, Math.max(0, ((t - w.start) / dur) * 100));
+            span.style.setProperty('--word-progress', `${pct.toFixed(1)}%`);
+          } else if ((activeIdx !== -1 && i < activeIdx) || (activeIdx === -1 && i <= completedBeforeIdx)) {
+            if (!span.classList.contains('is-past')) {
+              span.classList.add('is-past');
+              span.classList.remove('is-active');
+              span.style.removeProperty('--word-progress');
+            }
+          } else {
+            if (span.classList.contains('is-active') || span.classList.contains('is-past')) {
+              span.classList.remove('is-active', 'is-past');
+              span.style.removeProperty('--word-progress');
+            }
+          }
+        }
+
+        // Auto-scroll active word into view when it changes
+        if (activeIdx !== -1 && (activeIdx !== state.activeWordIndex || forceScroll)) {
+          state.activeWordIndex = activeIdx;
+
+          // Highlight active row in Stage 1 table
+          const prevRow = els.timestampsTableBody.querySelector('tr.bg-indigo-50');
+          if (prevRow) prevRow.classList.remove('bg-indigo-50');
+          const currRow = els.timestampsTableBody.querySelector(`tr[data-row-idx="${activeIdx}"]`);
+          if (currRow) currRow.classList.add('bg-indigo-50');
+
+          if (state.activeTab === 2 && state.autoScroll && readerWordSpans[activeIdx]) {
+            const el = readerWordSpans[activeIdx];
+            const rect = el.getBoundingClientRect();
+            const viewHeight = window.innerHeight || document.documentElement.clientHeight;
+            if (rect.top < 110 || rect.bottom > viewHeight - 130) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }
+        }
+      }
+
+      function startSyncLoop() {
+        if (state.rafId) cancelAnimationFrame(state.rafId);
+        function step() {
+          const cur = els.audio.currentTime || 0;
+          const dur = els.audio.duration || 0;
+
+          els.miniTimeCurrent.textContent = formatTime(cur, true);
+          els.readerTimeCurrent.textContent = formatTime(cur, false);
+
+          if (dur > 0) {
+            const pct = (cur / dur) * 100;
+            els.miniScrubber.value = pct;
+            els.readerScrubber.value = pct;
+          }
+
+          syncHighlightAtTime(cur);
+
+          if (!els.audio.paused && !els.audio.ended) {
+            state.rafId = requestAnimationFrame(step);
+          }
+        }
+        state.rafId = requestAnimationFrame(step);
+      }
+
+      // =========================================================================
+      // 8. MANUAL SPACEBAR TAP-SYNC ENGINE
+      // =========================================================================
+      function startTapSyncSession() {
+        const text = els.inputText.value.trim();
+        if (!text) {
+          showToast('Please enter story text first before starting Tap-Sync.', 'warning');
+          return;
+        }
+        if (!els.audio.src) {
+          showToast('Please upload an audio file (or generate Demo audio first) to Tap-Sync against.', 'warning');
+          return;
+        }
+
+        const tokens = tokenizeStoryWithParagraphs(text);
+        state.tapSync = {
+          active: true,
+          tokens,
+          currentIndex: 0,
+          records: [],
+        };
+
+        els.btnTapsyncTap.disabled = false;
+        els.tapsyncCounter.textContent = `0 / ${tokens.length} words synced`;
+        els.tapsyncPrevWord.textContent = 'Audio starting...';
+        els.tapsyncCurrentWord.textContent = tokens[0].word;
+        els.tapsyncNextWord.textContent = tokens[1] ? `Next: ${tokens[1].word}` : 'Last word';
+
+        els.audio.currentTime = 0;
+        els.audio.play().catch(() => {});
+        showToast('Tap-Sync active! Tap Spacebar as each highlighted word is spoken.', 'info');
+      }
+
+      function recordTapSyncWord() {
+        const ts = state.tapSync;
+        if (!ts.active || ts.currentIndex >= ts.tokens.length) return;
+
+        const now = Number((els.audio.currentTime || 0).toFixed(3));
+        const idx = ts.currentIndex;
+
+        // Close previous word's end time at this tap
+        if (idx > 0 && ts.records[idx - 1]) {
+          ts.records[idx - 1].end = Math.max(ts.records[idx - 1].start + 0.08, now);
+        }
+
+        const tok = ts.tokens[idx];
+        ts.records.push({
+          index: idx,
+          word: tok.word,
+          start: now,
+          end: Number((now + 0.35).toFixed(3)),
+          paragraphIndex: tok.paragraphIndex,
+        });
+
+        ts.currentIndex++;
+        els.tapsyncCounter.textContent = `${ts.currentIndex} / ${ts.tokens.length} words synced`;
+
+        if (ts.currentIndex < ts.tokens.length) {
+          els.tapsyncPrevWord.textContent = `Synced: "${tok.word}" @ ${now.toFixed(2)}s`;
+          els.tapsyncCurrentWord.textContent = ts.tokens[ts.currentIndex].word;
+          els.tapsyncNextWord.textContent = ts.tokens[ts.currentIndex + 1]
+            ? `Next: ${ts.tokens[ts.currentIndex + 1].word}`
+            : 'Final word!';
+        } else {
+          // Completed all words!
+          const audioEnd = Number.isFinite(els.audio.duration) ? els.audio.duration : now + 0.4;
+          const lastRec = ts.records[ts.records.length - 1];
+          if (lastRec) {
+            lastRec.end = Number(Math.min(audioEnd, lastRec.start + 0.55).toFixed(3));
+          }
+          ts.active = false;
+          els.btnTapsyncTap.disabled = true;
+          els.tapsyncPrevWord.textContent = 'All words captured!';
+          els.tapsyncCurrentWord.textContent = 'Sync Complete ✓';
+          els.tapsyncNextWord.textContent = 'Timestamps loaded into Inspector';
+
+          applyGeneratedStoryData({
+            title: els.inputTitle.value.trim() || 'Tap-Synced Story',
+            text: els.inputText.value.trim(),
+            words: ts.records,
+            audioBlob: state.audioBlob,
+            filename: state.audioFilename,
+            mimeType: state.audioMimeType,
+            sourceLabel: 'Manual Tap-Sync',
+          });
+          showToast('Tap-Sync complete! Word timestamps loaded into Inspector.', 'success');
+        }
+      }
+
+      // =========================================================================
+      // 9. STANDALONE STORY HTML EXPORT GENERATOR
+      // =========================================================================
+      function blobToBase64DataUrl(blob) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      async function generateStandaloneStoryHtml() {
+        const audioDataUrl = await blobToBase64DataUrl(state.audioBlob);
+        const payloadJson = JSON.stringify(buildStructuredJsonPayload());
+        const safeTitle = escapeHtml(state.storyTitle || 'Interactive Story');
+
+        // Group words into paragraphs for static semantic HTML rendering
+        const paraMap = new Map();
+        state.words.forEach((w, idx) => {
+          const pIdx = w.paragraphIndex ?? 0;
+          if (!paraMap.has(pIdx)) paraMap.set(pIdx, []);
+          paraMap.get(pIdx).push({ ...w, index: idx });
+        });
+
+        const bodyParagraphsHtml = Array.from(paraMap.keys())
+          .sort((a, b) => a - b)
+          .map((pKey) => {
+            const spans = paraMap
+              .get(pKey)
+              .map(
+                (w) =>
+                  `<span class="story-word" data-index="${w.index}" data-start="${w.start}" data-end="${w.end}">${escapeHtml(w.word)}</span>`
+              )
+              .join(' ');
+            return `      <p>${spans}</p>`;
+          })
+          .join('\n');
+
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${safeTitle} — Interactive Audio Story</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --surface: #f8fafc;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --accent: #4f46e5;
+      --accent-contrast: #ffffff;
+      --accent-soft: rgba(79, 70, 229, 0.14);
+      --font-size: 1.15rem;
+    }
+    body.theme-sepia {
+      --bg: #fbf6ec;
+      --surface: #f4ecdc;
+      --text: #3b2f2f;
+      --muted: #7c6a58;
+      --border: #e4d7c3;
+      --accent: #b45309;
+      --accent-contrast: #fffbeb;
+      --accent-soft: rgba(180, 83, 9, 0.15);
+    }
+    body.theme-dark {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --border: #334155;
+      --accent: #6366f1;
+      --accent-contrast: #ffffff;
+      --accent-soft: rgba(99, 102, 241, 0.22);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Georgia, 'Times New Roman', serif;
+      line-height: 1.85;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.65rem 1.25rem;
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+    .controls-group { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+    .chip-btn {
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      padding: 0.3rem 0.65rem;
+      border-radius: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .chip-btn.active {
+      background: var(--accent);
+      color: var(--accent-contrast);
+      border-color: var(--accent);
+    }
+    main {
+      max-width: 740px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 8rem;
+    }
+    h1 {
+      font-size: clamp(1.75rem, 4vw, 2.5rem);
+      line-height: 1.25;
+      margin: 0 0 0.5rem;
+    }
+    .subtitle {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .story-content { font-size: var(--font-size); }
+    .story-content p { margin: 0 0 1.5em; }
+    .story-word {
+      display: inline-block;
+      cursor: pointer;
+      border-radius: 0.35rem;
+      padding: 0.04em 0.16em;
+      margin: 0 -0.04em;
+      transition: background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+    }
+    .story-word:hover { background-color: var(--accent-soft); }
+
+    /* Highlight Modes */
+    body.hl-pill .story-word.is-past { opacity: 0.78; }
+    body.hl-pill .story-word.is-active {
+      background-color: var(--accent);
+      color: var(--accent-contrast);
+      box-shadow: 0 2px 10px var(--accent-soft);
+    }
+    body.hl-underline .story-word { border-bottom: 2.5px solid transparent; border-radius: 0.15rem; }
+    body.hl-underline .story-word.is-active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      background-color: var(--accent-soft);
+    }
+    body.hl-karaoke .story-word.is-past { color: var(--accent); }
+    body.hl-karaoke .story-word.is-active {
+      background: linear-gradient(90deg, var(--accent-soft) var(--word-progress, 0%), transparent var(--word-progress, 0%));
+      box-shadow: inset 0 -2px 0 var(--accent);
+    }
+
+    /* Sticky Bottom Player */
+    .player-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 0.75rem 1.25rem;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .player-inner {
+      max-width: 780px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .timeline-row { display: flex; align-items: center; gap: 0.75rem; font-size: 0.75rem; color: var(--muted); }
+    .timeline-row input[type="range"] { flex: 1; accent-color: var(--accent); cursor: pointer; }
+    .transport-row { display: flex; align-items: center; justify-content: center; gap: 0.75rem; }
+    .play-btn {
+      width: 2.75rem;
+      height: 2.75rem;
+      border-radius: 9999px;
+      border: none;
+      background: var(--accent);
+      color: var(--accent-contrast);
+      font-weight: bold;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body class="theme-${state.readerTheme} hl-${state.readerHighlight}">
+  <header class="topbar">
+    <div class="controls-group">
+      <button class="chip-btn ${state.readerTheme === 'light' ? 'active' : ''}" onclick="setTheme('light', this)">Light</button>
+      <button class="chip-btn ${state.readerTheme === 'sepia' ? 'active' : ''}" onclick="setTheme('sepia', this)">Sepia</button>
+      <button class="chip-btn ${state.readerTheme === 'dark' ? 'active' : ''}" onclick="setTheme('dark', this)">Dark</button>
+    </div>
+    <div class="controls-group">
+      <button class="chip-btn ${state.readerHighlight === 'pill' ? 'active' : ''}" onclick="setHighlight('pill', this)">Pill</button>
+      <button class="chip-btn ${state.readerHighlight === 'underline' ? 'active' : ''}" onclick="setHighlight('underline', this)">Underline</button>
+      <button class="chip-btn ${state.readerHighlight === 'karaoke' ? 'active' : ''}" onclick="setHighlight('karaoke', this)">Karaoke</button>
+      <select class="chip-btn" onchange="document.documentElement.style.setProperty('--font-size', this.value)">
+        <option value="1rem" ${state.readerSize === 'sm' ? 'selected' : ''}>Small</option>
+        <option value="1.15rem" ${state.readerSize === 'md' ? 'selected' : ''}>Medium</option>
+        <option value="1.35rem" ${state.readerSize === 'lg' ? 'selected' : ''}>Large</option>
+        <option value="1.6rem" ${state.readerSize === 'xl' ? 'selected' : ''}>XL</option>
+      </select>
+    </div>
+  </header>
+
+  <main>
+    <h1>${safeTitle}</h1>
+    <div class="subtitle">Interactive Audio Story &bull; Click any word to jump directly to that moment</div>
+    <div class="story-content" id="story-content">
+${bodyParagraphsHtml}
+    </div>
+  </main>
+
+  <div class="player-bar">
+    <div class="player-inner">
+      <div class="timeline-row">
+        <span id="time-cur">0:00</span>
+        <input id="scrubber" type="range" min="0" max="100" step="0.05" value="0" />
+        <span id="time-tot">0:00</span>
+      </div>
+      <div class="transport-row">
+        <button class="chip-btn" onclick="skip(-5)">-5s</button>
+        <button class="play-btn" id="play-btn" onclick="togglePlay()">&#9654;</button>
+        <button class="chip-btn" onclick="skip(5)">+5s</button>
+        <select class="chip-btn" onchange="audio.playbackRate = parseFloat(this.value)">
+          <option value="0.75">0.75x</option>
+          <option value="1" selected>1.0x</option>
+          <option value="1.25">1.25x</option>
+          <option value="1.5">1.5x</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!--
+    PRODUCTION TIP:
+    The audio below is embedded as a Base64 Data URI so this file works offline immediately.
+    For production web hosting, place "${escapeHtml(state.audioFilename)}" alongside this HTML file and replace src="..." with:
+    src="${escapeHtml(state.audioFilename)}"
+  -->
+  <audio id="story-audio" preload="auto" src="${audioDataUrl}"></audio>
+
+  <script>
+    const STORY_DATA = ${payloadJson};
+    const audio = document.getElementById('story-audio');
+    const playBtn = document.getElementById('play-btn');
+    const scrubber = document.getElementById('scrubber');
+    const timeCur = document.getElementById('time-cur');
+    const timeTot = document.getElementById('time-tot');
+    const spans = Array.from(document.querySelectorAll('.story-word'));
+    let lastActiveIdx = -1;
+
+    function fmt(sec) {
+      if (!Number.isFinite(sec) || sec < 0) sec = 0;
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return m + ':' + String(s).padStart(2, '0');
+    }
+
+    function setTheme(theme, btn) {
+      document.body.classList.remove('theme-light', 'theme-sepia', 'theme-dark');
+      document.body.classList.add('theme-' + theme);
+      btn.parentElement.querySelectorAll('.chip-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    function setHighlight(hl, btn) {
+      document.body.classList.remove('hl-pill', 'hl-underline', 'hl-karaoke');
+      document.body.classList.add('hl-' + hl);
+      btn.parentElement.querySelectorAll('.chip-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    function togglePlay() {
+      if (audio.paused) audio.play();
+      else audio.pause();
+    }
+
+    function skip(delta) {
+      audio.currentTime = Math.max(0, Math.min(audio.duration || 0, audio.currentTime + delta));
+      sync(audio.currentTime);
+    }
+
+    spans.forEach(span => {
+      span.addEventListener('click', () => {
+        audio.currentTime = parseFloat(span.dataset.start) || 0;
+        audio.play();
+      });
+    });
+
+    scrubber.addEventListener('input', () => {
+      if (audio.duration) {
+        audio.currentTime = (parseFloat(scrubber.value) / 100) * audio.duration;
+        sync(audio.currentTime);
+      }
+    });
+
+    audio.addEventListener('loadedmetadata', () => { timeTot.textContent = fmt(audio.duration); });
+    audio.addEventListener('play', () => { playBtn.innerHTML = '&#10074;&#10074;'; loop(); });
+    audio.addEventListener('pause', () => { playBtn.innerHTML = '&#9654;'; });
+    audio.addEventListener('ended', () => { playBtn.innerHTML = '&#9654;'; });
+
+    function sync(t) {
+      const words = STORY_DATA.words;
+      let activeIdx = -1;
+      for (let i = 0; i < words.length; i++) {
+        if (t >= words[i].start && t <= words[i].end) { activeIdx = i; break; }
+      }
+      let pastIdx = activeIdx;
+      if (activeIdx === -1) {
+        for (let i = words.length - 1; i >= 0; i--) {
+          if (t > words[i].end) { pastIdx = i; break; }
+        }
+      }
+      for (let i = 0; i < spans.length; i++) {
+        const s = spans[i];
+        if (i === activeIdx) {
+          s.classList.add('is-active');
+          s.classList.remove('is-past');
+          const pct = Math.min(100, Math.max(0, ((t - words[i].start) / Math.max(0.05, words[i].end - words[i].start)) * 100));
+          s.style.setProperty('--word-progress', pct.toFixed(1) + '%');
+        } else if ((activeIdx !== -1 && i < activeIdx) || (activeIdx === -1 && i <= pastIdx)) {
+          s.classList.add('is-past');
+          s.classList.remove('is-active');
+        } else {
+          s.classList.remove('is-active', 'is-past');
+        }
+      }
+      if (activeIdx !== -1 && activeIdx !== lastActiveIdx) {
+        lastActiveIdx = activeIdx;
+        const rect = spans[activeIdx].getBoundingClientRect();
+        if (rect.top < 90 || rect.bottom > window.innerHeight - 110) {
+          spans[activeIdx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    }
+
+    function loop() {
+      timeCur.textContent = fmt(audio.currentTime);
+      if (audio.duration) scrubber.value = (audio.currentTime / audio.duration) * 100;
+      sync(audio.currentTime);
+      if (!audio.paused && !audio.ended) requestAnimationFrame(loop);
+    }
+  <\/script>
+</body>
+</html>`;
+      }
+
+      // =========================================================================
+      // 10. UI NAVIGATION & READER APPEARANCE CONTROLS
+      // =========================================================================
+      function switchTab(tabNum) {
+        state.activeTab = tabNum;
+        if (tabNum === 1) {
+          els.stage1.classList.remove('hidden');
+          els.stage2.classList.add('hidden');
+          els.tabBtn1.className = 'flex-1 md:flex-initial flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition bg-white text-indigo-700 shadow-sm';
+          els.tabBtn2.className = 'flex-1 md:flex-initial flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition text-slate-600 hover:text-slate-900';
+        } else {
+          els.stage1.classList.add('hidden');
+          els.stage2.classList.remove('hidden');
+          els.tabBtn2.className = 'flex-1 md:flex-initial flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition bg-white text-indigo-700 shadow-sm';
+          els.tabBtn1.className = 'flex-1 md:flex-initial flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium transition text-slate-600 hover:text-slate-900';
+          renderFinalStoryReader();
+          syncHighlightAtTime(els.audio.currentTime || 0, false);
+        }
+      }
+
+      function switchGenerationMode(mode) {
+        state.generationMode = mode;
+        els.modeBtns.forEach((btn) => {
+          const isMatch = btn.dataset.mode === mode;
+          btn.className = isMatch
+            ? 'mode-btn flex flex-col items-start p-2.5 rounded-lg text-left transition bg-white text-indigo-700 shadow-sm border border-indigo-100 cursor-pointer'
+            : 'mode-btn flex flex-col items-start p-2.5 rounded-lg text-left transition text-slate-600 hover:text-slate-900 cursor-pointer';
+        });
+
+        els.modePanelCartesia.classList.toggle('hidden', mode !== 'cartesia');
+        els.modePanelDemo.classList.toggle('hidden', mode !== 'demo');
+        els.modePanelManual.classList.toggle('hidden', mode !== 'manual');
+
+        if (mode === 'manual') {
+          els.generateBtnLabel.textContent = 'Apply / Auto-Distribute Word Timings';
+        } else {
+          els.generateBtnLabel.textContent = 'Generate Audio & Word Data';
+        }
+      }
+
+      function applyReaderAppearance() {
+        const surface = els.storyReaderSurface;
+        const playerBar = els.readerPlayerBar;
+
+        surface.classList.remove('theme-light', 'theme-sepia', 'theme-dark', 'hl-pill', 'hl-underline', 'hl-karaoke');
+        surface.classList.add(`theme-${state.readerTheme}`, `hl-${state.readerHighlight}`);
+
+        if (state.readerTheme === 'light') {
+          surface.style.backgroundColor = '#ffffff';
+          surface.style.color = '#0f172a';
+          surface.style.borderColor = '#e2e8f0';
+          playerBar.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+          playerBar.style.borderColor = '#e2e8f0';
+        } else if (state.readerTheme === 'sepia') {
+          surface.style.backgroundColor = '#fbf6ec';
+          surface.style.color = '#3b2f2f';
+          surface.style.borderColor = '#e4d7c3';
+          playerBar.style.backgroundColor = 'rgba(244, 236, 220, 0.95)';
+          playerBar.style.borderColor = '#e4d7c3';
+        } else {
+          surface.style.backgroundColor = '#0f172a';
+          surface.style.color = '#f1f5f9';
+          surface.style.borderColor = '#1e293b';
+          playerBar.style.backgroundColor = 'rgba(15, 23, 42, 0.95)';
+          playerBar.style.borderColor = '#1e293b';
+        }
+
+        const sizeClasses = {
+          sm: 'text-base leading-relaxed',
+          md: 'text-lg leading-relaxed',
+          lg: 'text-xl leading-loose',
+          xl: 'text-2xl leading-loose',
+        };
+        els.readerStoryBody.className = `font-serif space-y-6 ${sizeClasses[state.readerSize] || sizeClasses.md}`;
+      }
+
+      // =========================================================================
+      // 11. EVENT LISTENERS & INITIALIZATION
+      // =========================================================================
+      function bindEvents() {
+        // Tab switcher
+        els.tabBtn1.addEventListener('click', () => switchTab(1));
+        els.tabBtn2.addEventListener('click', () => switchTab(2));
+        els.btnProceedStage2.addEventListener('click', () => switchTab(2));
+        els.btnBackToStage1.addEventListener('click', () => switchTab(1));
+
+        // Load Sample Story (both desktop & mobile buttons)
+        const handleLoadSample = async () => {
+          els.inputTitle.value = 'The Clockmaker of Lantern Alley';
+          els.inputText.value =
+            'Every evening at twilight, old Master Julian wound the silver chronometer hanging above his workbench in Lantern Alley. Unlike ordinary clocks that merely counted passing seconds, this delicate instrument measured unspoken wishes.\n\n' +
+            'When a traveler paused outside the frosted window, the golden hands would shimmer softly, slowing time just enough for courage to catch up with hesitation.';
+          updateStoryStats();
+
+          // If user has no Cartesia key entered, automatically run Instant Demo Generator so they get immediate playback!
+          if (!els.cartesiaKey.value.trim()) {
+            switchGenerationMode('demo');
+            await handlePrimaryGenerate();
+          } else {
+            showToast('Sample story loaded! Click "Generate Audio & Word Data" to synthesize.', 'info');
+          }
+        };
+        els.btnLoadSample.addEventListener('click', handleLoadSample);
+        els.btnLoadSampleMobile.addEventListener('click', handleLoadSample);
+
+        // Input stats update
+        els.inputText.addEventListener('input', updateStoryStats);
+
+        // Mode tabs
+        els.modeBtns.forEach((btn) => {
+          btn.addEventListener('click', () => switchGenerationMode(btn.dataset.mode));
+        });
+
+        // Cartesia API Key session storage & visibility
+        const savedKey = sessionStorage.getItem('storysync_cartesia_key');
+        if (savedKey) els.cartesiaKey.value = savedKey;
+
+        els.cartesiaKey.addEventListener('input', () => {
+          if (els.cartesiaSaveSession.checked) {
+            sessionStorage.setItem('storysync_cartesia_key', els.cartesiaKey.value);
+          }
+        });
+        els.cartesiaSaveSession.addEventListener('change', () => {
+          if (els.cartesiaSaveSession.checked) {
+            sessionStorage.setItem('storysync_cartesia_key', els.cartesiaKey.value);
+          } else {
+            sessionStorage.removeItem('storysync_cartesia_key');
+          }
+        });
+        els.btnToggleKey.addEventListener('click', () => {
+          const isPass = els.cartesiaKey.type === 'password';
+          els.cartesiaKey.type = isPass ? 'text' : 'password';
+          els.btnToggleKey.textContent = isPass ? 'Hide' : 'Show';
+        });
+
+        // Cartesia Custom Voice toggle
+        els.cartesiaVoicePreset.addEventListener('change', () => {
+          els.customVoiceWrapper.classList.toggle('hidden', els.cartesiaVoicePreset.value !== 'custom');
+        });
+
+        // Fallback to Demo from Cartesia Error Banner
+        els.btnFallbackDemo.addEventListener('click', async () => {
+          els.cartesiaErrorBox.classList.add('hidden');
+          switchGenerationMode('demo');
+          await handlePrimaryGenerate();
+        });
+
+        // Manual Audio File Upload
+        els.manualAudioFile.addEventListener('change', (e) => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          state.audioBlob = file;
+          state.audioFilename = file.name;
+          state.audioMimeType = file.type || 'audio/mpeg';
+          if (state.audioUrl) URL.revokeObjectURL(state.audioUrl);
+          state.audioUrl = URL.createObjectURL(file);
+          els.audio.src = state.audioUrl;
+          els.audio.load();
+
+          els.miniPlayBtn.disabled = false;
+          els.miniScrubber.disabled = false;
+          els.miniSourceLabel.textContent = file.name;
+          els.manualFileStatus.textContent = `Loaded: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+          showToast(`Audio file "${file.name}" loaded!`, 'success');
+        });
+
+        // Manual Tap-Sync controls
+        els.btnTapsyncStart.addEventListener('click', startTapSyncSession);
+        els.btnTapsyncTap.addEventListener('click', recordTapSyncWord);
+        els.btnTapsyncReset.addEventListener('click', () => {
+          state.tapSync.active = false;
+          state.tapSync.currentIndex = 0;
+          state.tapSync.records = [];
+          els.btnTapsyncTap.disabled = true;
+          els.tapsyncCounter.textContent = '0 / 0 words synced';
+          els.tapsyncPrevWord.textContent = 'Reset complete';
+          els.tapsyncCurrentWord.textContent = 'Press "Start Tap-Sync"';
+          els.tapsyncNextWord.textContent = 'Tap Spacebar on each word';
+          els.audio.pause();
+          els.audio.currentTime = 0;
+        });
+
+        // Spacebar listener for Tap-Sync when active
+        window.addEventListener('keydown', (e) => {
+          if (e.code === 'Space' && state.tapSync.active) {
+            const activeTag = document.activeElement && document.activeElement.tagName;
+            if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA') {
+              e.preventDefault();
+              recordTapSyncWord();
+            }
+          }
+        });
+
+        // Apply pasted JSON in Manual mode
+        els.btnApplyPastedJson.addEventListener('click', () => {
+          try {
+            const parsed = JSON.parse(els.manualJsonPaste.value.trim());
+            const arr = Array.isArray(parsed) ? parsed : parsed.words;
+            if (!Array.isArray(arr) || !arr.length) {
+              throw new Error('JSON must be an array of { word, start, end } objects or an object with a "words" array.');
+            }
+            const formatted = assignParagraphIndicesToExternalWords(arr, els.inputText.value || arr.map((w) => w.word).join(' '));
+            applyGeneratedStoryData({
+              title: els.inputTitle.value.trim() || parsed.title || 'Custom Synced Story',
+              text: els.inputText.value.trim() || formatted.map((w) => w.word).join(' '),
+              words: formatted,
+              audioBlob: state.audioBlob,
+              filename: state.audioFilename,
+              mimeType: state.audioMimeType,
+              sourceLabel: 'Imported JSON + Audio',
+            });
+            showToast(`Loaded ${formatted.length} word timestamps from JSON!`, 'success');
+          } catch (err) {
+            showToast(`Invalid JSON: ${err.message}`, 'error');
+          }
+        });
+
+        // Primary Generate Button
+        els.btnGenerateMain.addEventListener('click', handlePrimaryGenerate);
+
+        // Inspector Table vs JSON toggle
+        els.viewTableBtn.addEventListener('click', () => {
+          els.inspectorTableContainer.classList.remove('hidden');
+          els.inspectorJsonContainer.classList.add('hidden');
+          els.viewTableBtn.className = 'px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-slate-900 shadow-2xs cursor-pointer';
+          els.viewJsonBtn.className = 'px-2.5 py-1 rounded-md text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer';
+        });
+
+        els.viewJsonBtn.addEventListener('click', () => {
+          els.inspectorJsonEditor.value = JSON.stringify(buildStructuredJsonPayload(), null, 2);
+          els.inspectorJsonContainer.classList.remove('hidden');
+          els.inspectorTableContainer.classList.add('hidden');
+          els.viewJsonBtn.className = 'px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-slate-900 shadow-2xs cursor-pointer';
+          els.viewTableBtn.className = 'px-2.5 py-1 rounded-md text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer';
+        });
+
+        // Inline table edits
+        els.timestampsTableBody.addEventListener('change', (e) => {
+          const input = e.target;
+          if (!input.classList.contains('ts-cell-input')) return;
+          const idx = parseInt(input.dataset.idx, 10);
+          const field = input.dataset.field;
+          if (!state.words[idx]) return;
+
+          if (field === 'word') {
+            state.words[idx].word = input.value.trim() || state.words[idx].word;
+          } else if (field === 'start' || field === 'end') {
+            const val = parseFloat(input.value);
+            if (Number.isFinite(val) && val >= 0) {
+              state.words[idx][field] = Number(val.toFixed(3));
+            }
+          }
+          els.inspectorJsonEditor.value = JSON.stringify(buildStructuredJsonPayload(), null, 2);
+          renderFinalStoryReader();
+          showToast('Timestamp updated', 'info');
+        });
+
+        // Save JSON edits button
+        els.btnSaveJsonEdits.addEventListener('click', () => {
+          try {
+            const parsed = JSON.parse(els.inspectorJsonEditor.value);
+            const arr = Array.isArray(parsed) ? parsed : parsed.words;
+            if (!Array.isArray(arr) || !arr.length) {
+              throw new Error('Expected a valid words array.');
+            }
+            state.words = arr.map((w, idx) => ({
+              index: idx,
+              word: String(w.word),
+              start: Number(Number(w.start).toFixed(3)),
+              end: Number(Number(w.end).toFixed(3)),
+              paragraphIndex: Number.isInteger(w.paragraphIndex) ? w.paragraphIndex : 0,
+            }));
+            renderTimestampsInspector();
+            renderFinalStoryReader();
+            showToast('Applied manual JSON edits!', 'success');
+          } catch (err) {
+            showToast(`JSON Parse Error: ${err.message}`, 'error');
+          }
+        });
+
+        // Stage 1 Copy / Download Buttons
+        els.btnCopyJson.addEventListener('click', () => {
+          copyTextToClipboard(JSON.stringify(buildStructuredJsonPayload(), null, 2));
+        });
+
+        const downloadJsonHandler = () => {
+          if (!state.words.length) return;
+          const jsonBlob = new Blob([JSON.stringify(buildStructuredJsonPayload(), null, 2)], {
+            type: 'application/json',
+          });
+          triggerDownload(jsonBlob, 'word-timestamps.json');
+          showToast('Downloaded word-timestamps.json', 'success');
+        };
+
+        const downloadAudioHandler = () => {
+          if (!state.audioBlob) return;
+          triggerDownload(state.audioBlob, state.audioFilename || 'story-audio.wav');
+          showToast(`Downloaded ${state.audioFilename || 'story-audio.wav'}`, 'success');
+        };
+
+        els.btnDlJsonStage1.addEventListener('click', downloadJsonHandler);
+        els.btnExportJson.addEventListener('click', downloadJsonHandler);
+        els.btnDlWavStage1.addEventListener('click', downloadAudioHandler);
+        els.btnExportWav.addEventListener('click', downloadAudioHandler);
+
+        // Stage 2 Export Standalone HTML Page
+        els.btnExportHtml.addEventListener('click', async () => {
+          if (!state.audioBlob || !state.words.length) {
+            showToast('Generate audio and timestamps first before exporting.', 'warning');
+            return;
+          }
+          try {
+            const htmlContent = await generateStandaloneStoryHtml();
+            const htmlBlob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+            triggerDownload(htmlBlob, 'story.html');
+            showToast('Downloaded standalone story.html!', 'success');
+          } catch (err) {
+            showToast(`Export error: ${err.message}`, 'error');
+          }
+        });
+
+        // Audio Transport & Scrubber Bindings (shared between Stage 1 Mini & Stage 2 Reader)
+        function toggleAudioPlayback() {
+          if (!els.audio.src) return;
+          if (els.audio.paused) {
+            els.audio.play().catch((err) => showToast(`Playback blocked: ${err.message}`, 'warning'));
+          } else {
+            els.audio.pause();
+          }
+        }
+
+        els.miniPlayBtn.addEventListener('click', toggleAudioPlayback);
+        els.readerPlayBtn.addEventListener('click', toggleAudioPlayback);
+
+        els.readerSkipBack.addEventListener('click', () => {
+          els.audio.currentTime = Math.max(0, (els.audio.currentTime || 0) - 5);
+          syncHighlightAtTime(els.audio.currentTime, true);
+        });
+
+        els.readerSkipFwd.addEventListener('click', () => {
+          els.audio.currentTime = Math.min(els.audio.duration || 0, (els.audio.currentTime || 0) + 5);
+          syncHighlightAtTime(els.audio.currentTime, true);
+        });
+
+        els.readerSpeed.addEventListener('change', () => {
+          els.audio.playbackRate = parseFloat(els.readerSpeed.value) || 1.0;
+        });
+
+        els.miniScrubber.addEventListener('input', () => {
+          if (els.audio.duration) {
+            els.audio.currentTime = (parseFloat(els.miniScrubber.value) / 100) * els.audio.duration;
+            syncHighlightAtTime(els.audio.currentTime, false);
+          }
+        });
+
+        els.readerScrubber.addEventListener('input', () => {
+          if (els.audio.duration) {
+            els.audio.currentTime = (parseFloat(els.readerScrubber.value) / 100) * els.audio.duration;
+            syncHighlightAtTime(els.audio.currentTime, true);
+          }
+        });
+
+        els.audio.addEventListener('loadedmetadata', () => {
+          const d = els.audio.duration || 0;
+          els.miniTimeTotal.textContent = formatTime(d, true);
+          els.readerTimeTotal.textContent = formatTime(d, false);
+        });
+
+        els.audio.addEventListener('play', () => {
+          els.miniIconPlay.classList.add('hidden');
+          els.miniIconPause.classList.remove('hidden');
+          els.readerIconPlay.classList.add('hidden');
+          els.readerIconPause.classList.remove('hidden');
+          startSyncLoop();
+        });
+
+        els.audio.addEventListener('pause', () => {
+          els.miniIconPlay.classList.remove('hidden');
+          els.miniIconPause.classList.add('hidden');
+          els.readerIconPlay.classList.remove('hidden');
+          els.readerIconPause.classList.add('hidden');
+        });
+
+        els.audio.addEventListener('ended', () => {
+          els.miniIconPlay.classList.remove('hidden');
+          els.miniIconPause.classList.add('hidden');
+          els.readerIconPlay.classList.remove('hidden');
+          els.readerIconPause.classList.add('hidden');
+          syncHighlightAtTime(els.audio.duration || 0, false);
+        });
+
+        // Reader Customization Controls
+        els.readerThemeBtns.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.readerTheme = btn.dataset.theme;
+            els.readerThemeBtns.forEach((b) => {
+              b.className =
+                b === btn
+                  ? 'reader-theme-btn px-2.5 py-1 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-2xs cursor-pointer'
+                  : 'reader-theme-btn px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer';
+            });
+            applyReaderAppearance();
+          });
+        });
+
+        els.readerSizeBtns.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.readerSize = btn.dataset.size;
+            els.readerSizeBtns.forEach((b) => {
+              b.className =
+                b === btn
+                  ? 'reader-size-btn px-2.5 py-1 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-2xs cursor-pointer'
+                  : 'reader-size-btn px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer';
+            });
+            applyReaderAppearance();
+          });
+        });
+
+        els.readerHlBtns.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.readerHighlight = btn.dataset.hl;
+            els.readerHlBtns.forEach((b) => {
+              b.className =
+                b === btn
+                  ? 'reader-hl-btn px-2.5 py-1 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-2xs cursor-pointer'
+                  : 'reader-hl-btn px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer';
+            });
+            applyReaderAppearance();
+          });
+        });
+
+        els.readerAutoscroll.addEventListener('change', () => {
+          state.autoScroll = els.readerAutoscroll.checked;
+        });
+      }
+
+      // =========================================================================
+      // 12. PRIMARY GENERATION HANDLER
+      // =========================================================================
+      async function handlePrimaryGenerate() {
+        const title = els.inputTitle.value.trim() || 'Untitled Story';
+        const text = els.inputText.value.trim();
+
+        if (!text) {
+          showToast('Please enter your story text before generating.', 'warning');
+          els.inputText.focus();
+          return;
+        }
+
+        els.cartesiaErrorBox.classList.add('hidden');
+        state.isGenerating = true;
+        els.btnGenerateMain.disabled = true;
+        els.generateSpinner.classList.remove('hidden');
+        els.generateIcon.classList.add('hidden');
+        els.generateBtnLabel.textContent = 'Generating Audio & Word Timings...';
+
+        try {
+          if (state.generationMode === 'cartesia') {
+            const apiKey = els.cartesiaKey.value.trim();
+            if (!apiKey) {
+              throw new Error('Missing Cartesia API Key. Enter your key above or switch to Instant Demo Mode.');
+            }
+            const modelId = els.cartesiaModel.value;
+            const voiceId =
+              els.cartesiaVoicePreset.value === 'custom'
+                ? els.cartesiaCustomVoice.value.trim()
+                : els.cartesiaVoicePreset.value;
+
+            if (!voiceId) {
+              throw new Error('Please provide a valid Cartesia Voice UUID.');
+            }
+
+            const result = await generateWithCartesiaSSE({
+              apiKey,
+              modelId,
+              voiceId,
+              transcript: text,
+            });
+
+            applyGeneratedStoryData({
+              title,
+              text,
+              words: result.words,
+              audioBlob: result.wavBlob,
+              filename: 'story-audio.wav',
+              mimeType: 'audio/wav',
+              sourceLabel: `Cartesia ${modelId}`,
+            });
+
+            showToast(`Generated ${result.words.length} exact word timestamps via Cartesia AI!`, 'success');
+          } else if (state.generationMode === 'demo') {
+            const pace = parseFloat(els.demoPace.value) || 1.0;
+            const result = await generateDemoAudioAndTimestamps(text, pace);
+
+            applyGeneratedStoryData({
+              title,
+              text,
+              words: result.words,
+              audioBlob: result.wavBlob,
+              filename: 'story-audio.wav',
+              mimeType: 'audio/wav',
+              sourceLabel: 'Instant Demo Synth',
+            });
+
+            showToast(`Demo audio & ${result.words.length} word timestamps generated!`, 'success');
+          } else if (state.generationMode === 'manual') {
+            if (!state.audioBlob) {
+              throw new Error('Please upload an audio file first in Manual mode.');
+            }
+            const dur = Number.isFinite(els.audio.duration) && els.audio.duration > 0 ? els.audio.duration : 10;
+            const tokens = tokenizeStoryWithParagraphs(text);
+            const totalSyllables = tokens.reduce((acc, t) => acc + estimateSyllables(t.word), 0) || 1;
+            let cursor = 0.1;
+            const usableDur = Math.max(1, dur - 0.2);
+
+            const distributed = tokens.map((tok, idx) => {
+              const weight = estimateSyllables(tok.word) / totalSyllables;
+              const slice = usableDur * weight;
+              const start = Number(cursor.toFixed(3));
+              const end = Number((cursor + slice * 0.92).toFixed(3));
+              cursor += slice;
+              return {
+                index: idx,
+                word: tok.word,
+                start,
+                end,
+                paragraphIndex: tok.paragraphIndex,
+              };
+            });
+
+            applyGeneratedStoryData({
+              title,
+              text,
+              words: distributed,
+              audioBlob: state.audioBlob,
+              filename: state.audioFilename,
+              mimeType: state.audioMimeType,
+              sourceLabel: 'Auto-Distributed Manual',
+            });
+
+            showToast('Auto-distributed word timings across your uploaded audio! Fine-tune in the table or use Tap-Sync.', 'success');
+          }
+        } catch (err) {
+          if (state.generationMode === 'cartesia') {
+            els.cartesiaErrorTitle.textContent = 'Cartesia AI Generation Error';
+            els.cartesiaErrorDetail.textContent = `${err.message}. Verify your API key, network/CORS permissions, or click below to test immediately with Instant Demo Mode.`;
+            els.cartesiaErrorBox.classList.remove('hidden');
+          }
+          showToast(err.message, 'error');
+        } finally {
+          state.isGenerating = false;
+          els.btnGenerateMain.disabled = false;
+          els.generateSpinner.classList.add('hidden');
+          els.generateIcon.classList.remove('hidden');
+          els.generateBtnLabel.textContent =
+            state.generationMode === 'manual' ? 'Apply / Auto-Distribute Word Timings' : 'Generate Audio & Word Data';
+        }
+      }
+
+      // Initialize app on DOMContentLoaded
+      window.addEventListener('DOMContentLoaded', () => {
+        bindEvents();
+        updateStoryStats();
+        applyReaderAppearance();
+      });
+    })();
+  </script>
+</body>
+</html>
